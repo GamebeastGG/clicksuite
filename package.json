@@ -1,5 +1,5 @@
 {
-  "name": "clicksuite",
+  "name": "@gamebeastgg/clicksuite",
   "version": "1.0.0",
   "main": "dist/index.js",
   "bin": {
@@ -25,7 +25,13 @@
   "author": "Gamebeast <info@gamebeast.gg>",
   "license": "ISC",
   "description": "A CLI tool for managing ClickHouse database migrations with environment-specific configurations",
-  "repository": "https://github.com/gamebeastgg/clicksuite",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gamebeastgg/clicksuite.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "bugs": {
     "url": "https://github.com/gamebeastgg/clicksuite/issues"
   },
