@@ -12,7 +12,7 @@ import { Context } from './types';
 // Load environment variables from .env file
 dotenv.config();
 
-function getContext(argv: { [key: string]: any }): Context {
+export function getContext(argv: { [key: string]: any }): Context {
   const baseUserConfigDir = process.env.CLICKSUITE_MIGRATIONS_DIR || '.';
   const actualMigrationsDir = path.resolve(baseUserConfigDir, 'migrations');
   const environment = process.env.CLICKSUITE_ENVIRONMENT || 'development';
@@ -26,7 +26,7 @@ function getContext(argv: { [key: string]: any }): Context {
     database: process.env.CLICKHOUSE_DATABASE || 'default',
     cluster: process.env.CLICKHOUSE_CLUSTER || undefined, // Ensure undefined if empty or not set
     migrationsDir: actualMigrationsDir, // This is where Runner expects .yml files
-    nonInteractive: argv.nonInteractive as boolean || !!process.env.CI, // CLI flag takes precedence
+    nonInteractive: argv.nonInteractive !== undefined ? argv.nonInteractive as boolean : !!process.env.CI, // CLI flag takes precedence
     environment: environment,
   };
 }

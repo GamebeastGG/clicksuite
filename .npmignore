@@ -1,0 +1,34 @@
+# Source files
+src/
+tests/
+coverage/
+
+# Configuration files
+.github/
+.env*
+!.env.example
+jest.config.js
+tsconfig.json
+
+# Development files
+node_modules/
+*.log
+*.tmp
+
+# Test and coverage files
+coverage/
+*.lcov
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git files
+.git/
+.gitignore
