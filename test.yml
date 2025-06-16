@@ -1,0 +1,16 @@
+version: "2025-06-16-205446"
+name: test
+table:
+
+development: &development
+  up: |
+  down: |
+    DROP TABLE {table}
+
+test:
+  <<: *development
+
+production:
+  up: |
+  down: |
+    DROP TABLE {table}

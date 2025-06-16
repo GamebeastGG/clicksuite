@@ -1,0 +1,33 @@
+{
+  "name": "clicksuite",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "bin": {
+    "clicksuite": "./dist/index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/inquirer": "^9.0.8",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^24.0.3",
+    "@types/yargs": "^17.0.33",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@clickhouse/client": "^1.11.2",
+    "@types/chalk": "^0.4.31",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.5.0",
+    "inquirer": "^12.6.3",
+    "js-yaml": "^4.1.0",
+    "yargs": "^17.7.2"
+  }
+}

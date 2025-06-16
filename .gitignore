@@ -1,0 +1,8 @@
+.env
+.DS_Store
+.idea
+.vscode
+
+dist/
+migrations/
+node_modules
