@@ -25,10 +25,7 @@
   "author": "Gamebeast <info@gamebeast.gg>",
   "license": "ISC",
   "description": "A CLI tool for managing ClickHouse database migrations with environment-specific configurations",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/gamebeastgg/clicksuite.git"
-  },
+  "repository": "https://github.com/gamebeastgg/clicksuite",
   "bugs": {
     "url": "https://github.com/gamebeastgg/clicksuite/issues"
   },
