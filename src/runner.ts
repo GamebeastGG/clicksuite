@@ -307,59 +307,113 @@ production:
     console.log(chalk.greenBright('\nAll selected UP migrations applied successfully!'));
   }
 
-  async down(targetVersionInput?: string) {
-    let targetVersion = targetVersionInput;
+  async down(targetVersionToBecomeLatest?: string) {
     const localMigrations = await this._getLocalMigrations();
-    const appliedDbMigrations = await this.db.getAppliedMigrations();
+    const localMigrationsMap = new Map(localMigrations.map(m => [m.version, m]));
+    // Get all active migrations, sorted by version ascending (oldest first)
+    const appliedDbMigrations = (await this.db.getAppliedMigrations())
+      .sort((a, b) => a.version.localeCompare(b.version));
 
     if (appliedDbMigrations.length === 0) {
       console.log(chalk.yellow('No active migrations in the database to roll back.'));
       return;
     }
 
-    if (!targetVersion) {
-      appliedDbMigrations.sort((a, b) => b.version.localeCompare(a.version));
-      targetVersion = appliedDbMigrations[0].version;
-      console.log(chalk.blue(`No specific version provided. Attempting to roll back the last applied migration: ${targetVersion}`));
-    } else {
-      console.log(chalk.blue(`Executing DOWN migration for version: ${targetVersion} in environment '${this.context.environment}'`));
-    }
-    
-    const migrationToRollback = localMigrations.find(m => m.version === targetVersion);
+    let migrationsToEffectivelyRollback: { version: string, name: string, downSQL?: string, querySettings?: Record<string,any>, table?: string }[] = [];
 
-    if (!migrationToRollback) {
-      console.error(chalk.red(`Local migration file for version ${targetVersion} not found. Cannot determine down SQL.`));
-      return;
-    }
-
-    const isAppliedInDb = appliedDbMigrations.some(m => m.version === targetVersion);
-    if (!isAppliedInDb) {
-      console.warn(chalk.yellow(`Migration ${targetVersion} is not currently active in the database. Cannot roll back.`));
-      return;
-    }
-
-    if (!migrationToRollback.downSQL) {
-      console.error(chalk.red(`No 'down' SQL found for migration ${targetVersion} in environment '${this.context.environment}'. Cannot roll back.`));
-      return;
-    }
-
-    console.log(chalk.magenta(`\nRolling back migration: ${migrationToRollback.version} - ${migrationToRollback.name}`));
-    try {
-      console.log(chalk.gray('--- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
-      console.log(chalk.gray(migrationToRollback.downSQL.trim()));
-      console.log(chalk.gray('----------------'));
-      if (migrationToRollback.table) {
-        console.log(chalk.dim(`(Using table: ${migrationToRollback.table})`));
+    if (!targetVersionToBecomeLatest) {
+      // Case 1: No target version specified - roll back the single last applied migration
+      const lastAppliedDbRecord = appliedDbMigrations[appliedDbMigrations.length - 1];
+      console.log(chalk.blue(`No specific version provided. Attempting to roll back the last applied migration: ${lastAppliedDbRecord.version}`));
+      const correspondingLocalFile = localMigrationsMap.get(lastAppliedDbRecord.version);
+      if (correspondingLocalFile) {
+        migrationsToEffectivelyRollback.push(correspondingLocalFile);
+      } else {
+        console.error(chalk.red(`Local migration file for version ${lastAppliedDbRecord.version} not found. Cannot roll back.`));
+        return;
       }
-      await this.db.executeMigration(migrationToRollback.downSQL, migrationToRollback.querySettings);
-      await this.db.markMigrationRolledBack(migrationToRollback.version);
-      console.log(chalk.green(`Successfully rolled back ${migrationToRollback.version} - ${migrationToRollback.name}`));
-    } catch (error: any) {
-      console.error(chalk.bold.red(`⚠️ Error rolling back migration ${migrationToRollback.version} - ${migrationToRollback.name}:`), error.message);
-      console.error(chalk.bold.red('Rollback process halted due to error.'));
-      throw error;
+    } else {
+      // Case 2: Target version specified - roll back all migrations *after* this version
+      console.log(chalk.blue(`Attempting to roll back migrations until version ${targetVersionToBecomeLatest} is the latest applied (or only one if it's the target)...`));
+
+      const targetIndexInApplied = appliedDbMigrations.findIndex(m => m.version === targetVersionToBecomeLatest);
+
+      if (targetIndexInApplied === -1) {
+        console.error(chalk.red(`Target version ${targetVersionToBecomeLatest} is not currently applied. Cannot roll back to this state.`));
+        // Further check: does this version even exist locally?
+        if (!localMigrationsMap.has(targetVersionToBecomeLatest)){
+            console.error(chalk.red(`Additionally, version ${targetVersionToBecomeLatest} does not exist in local migration files.`));
+        }
+        return;
+      }
+
+      // Migrations to roll back are those applied *after* the targetVersionToBecomeLatest
+      // These are from targetIndexInApplied + 1 to the end of the appliedDbMigrations array.
+      // We need to roll them back in reverse order of application (latest first).
+      const dbRecordsToRollback = appliedDbMigrations.slice(targetIndexInApplied + 1).reverse();
+      
+      if (dbRecordsToRollback.length === 0) {
+        console.log(chalk.green(`Version ${targetVersionToBecomeLatest} is already the latest applied migration or no migrations were applied after it. No rollback needed.`));
+        return;
+      }
+
+      for (const dbRec of dbRecordsToRollback) {
+          const localFile = localMigrationsMap.get(dbRec.version);
+          if (localFile) {
+              migrationsToEffectivelyRollback.push(localFile);
+          } else {
+              console.warn(chalk.yellow(`Local migration file for version ${dbRec.version} (which is applied in DB) not found. Cannot automatically roll it back.`));
+          }
+      }
     }
-     console.log(chalk.greenBright('\nDOWN migration completed successfully!'));
+
+    if (migrationsToEffectivelyRollback.length === 0) {
+      console.log(chalk.yellow('No migrations selected for rollback operation.'));
+      return;
+    }
+
+    console.log(chalk.magenta(`The following ${migrationsToEffectivelyRollback.length} migration(s) will be rolled back (in order):`));
+    migrationsToEffectivelyRollback.forEach(m => console.log(chalk.magenta(`  - ${m.version} - ${m.name}`)));
+
+    if (!this.context.nonInteractive) {
+      const answers = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'confirmation',
+          message: `Are you sure you want to roll back these ${migrationsToEffectivelyRollback.length} migration(s)?`,
+          default: false,
+        },
+      ]);
+      if (!answers.confirmation) {
+        console.log(chalk.gray('Rollback cancelled by user.'));
+        return;
+      }
+    }
+
+    for (const migration of migrationsToEffectivelyRollback) {
+      if (!migration.downSQL) {
+        console.error(chalk.red(`No 'down' SQL found for migration ${migration.version} - ${migration.name} in environment '${this.context.environment}'. Skipping.`));
+        continue; // Or halt, depending on desired strictness
+      }
+
+      console.log(chalk.magenta(`\nRolling back migration: ${migration.version} - ${migration.name}`));
+      try {
+        console.log(chalk.gray('--- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
+        console.log(chalk.gray(migration.downSQL.trim()));
+        console.log(chalk.gray('----------------'));
+        if (migration.table) {
+          console.log(chalk.dim(`(Using table: ${migration.table})`));
+        }
+        await this.db.executeMigration(migration.downSQL, migration.querySettings);
+        await this.db.markMigrationRolledBack(migration.version);
+        console.log(chalk.green(`Successfully rolled back ${migration.version} - ${migration.name}`));
+      } catch (error: any) {
+        console.error(chalk.bold.red(`⚠️ Error rolling back migration ${migration.version} - ${migration.name}:`), error.message);
+        console.error(chalk.bold.red('Rollback process halted due to error.'));
+        throw error; // Re-throw to stop further rollbacks on error
+      }
+    }
+    console.log(chalk.greenBright('\nSelected DOWN migrations completed successfully!'));
   }
 
   async reset() {
