@@ -9,6 +9,11 @@ import chalk from 'chalk';
 import { Runner } from './runner';
 import { Context } from './types';
 
+// Export public API for programmatic usage
+export { Runner } from './runner';
+export { Db } from './db';
+export * from './types';
+
 // Load environment variables from .env file
 dotenv.config();
 

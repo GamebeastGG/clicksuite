@@ -19,7 +19,9 @@ Clicksuite helps you manage your ClickHouse schema changes in a structured and e
 *   Roll back the last applied migration, or roll back to a specific version.
 *   Completely reset the database by rolling back all migrations and clearing the tracking table.
 *   Load an existing schema state by marking all local migrations as applied without running them.
+*   **Auto-generated schema.sql file** that updates after each migration with complete database schema.
 *   Configuration via `.env` file.
+*   **Full TypeScript support** with exported types for programmatic usage.
 
 ## Prerequisites
 
@@ -310,6 +312,50 @@ When contributing:
 3. Maintain or improve test coverage
 4. Follow existing code patterns and conventions
 5. Update documentation as needed
+
+## Programmatic Usage
+
+Clicksuite can also be used programmatically in your Node.js/TypeScript applications:
+
+```typescript
+import { Runner, Db, Context } from 'clicksuite';
+
+// Create a context for your ClickHouse configuration
+const context: Context = {
+  protocol: 'http',
+  host: 'localhost',
+  port: '8123',
+  username: 'default',
+  password: '',
+  database: 'my_database',
+  migrationsDir: '/path/to/migrations',
+  environment: 'development',
+  nonInteractive: false
+};
+
+// Run migrations programmatically
+const runner = new Runner(context);
+await runner.init();
+await runner.migrate();
+
+// Direct database access
+const db = new Db(context);
+const tables = await db.getDatabaseTables();
+await db.close();
+```
+
+### Available Types
+
+All TypeScript types are exported for easy integration:
+
+- `Context` - Configuration interface
+- `MigrationFile` - Represents a migration file
+- `MigrationRecord` - Database migration record
+- `MigrationStatus` - Migration status information
+- `MigrationState` - Migration state enum
+- `RawMigrationFileContent` - Raw YAML migration content
+
+See the [examples directory](./examples/) for more detailed usage examples.
 
 ## Contributing
 
