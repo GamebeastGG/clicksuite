@@ -186,7 +186,7 @@ yargs(hideBin(process.argv))
   .demandCommand(1, chalk.yellow('Please specify a command. Use --help for available commands.'))
   .alias('h', 'help')
   .alias('v', 'version')
-  .epilogue(chalk.gray('For more information, find the documentation at https://github.com/gamebeastgg/clicksuite'))
+  .epilogue(chalk.gray('For more information, find the documentation at https://github.com/GamebeastGG/clicksuite'))
   .fail((msg, err, yargsInstance) => {
     if (err && err.message && !err.message.startsWith('⚠️')) {
         console.error(chalk.bold.red('Error:'), err.message);

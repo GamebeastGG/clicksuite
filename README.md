@@ -1,9 +1,9 @@
 # Clicksuite - ClickHouse Migration Tool
 
-[![Tests](https://github.com/gamebeastgg/clicksuite/actions/workflows/test.yml/badge.svg)](https://github.com/gamebeastgg/clicksuite/actions/workflows/test.yml)
+[![Tests](https://github.com/GamebeastGG/clicksuite/actions/workflows/test.yml/badge.svg)](https://github.com/GamebeastGG/clicksuite/actions/workflows/test.yml)
 [![NPM Version](https://img.shields.io/npm/v/clicksuite.svg)](https://www.npmjs.com/package/clicksuite)
 [![NPM Downloads](https://img.shields.io/npm/dm/clicksuite.svg)](https://www.npmjs.com/package/clicksuite)
-[![codecov](https://codecov.io/gh/gamebeastgg/clicksuite/branch/main/graph/badge.svg)](https://codecov.io/gh/gamebeastgg/clicksuite)
+[![codecov](https://codecov.io/gh/GamebeastGG/clicksuite/branch/main/graph/badge.svg)](https://codecov.io/gh/GamebeastGG/clicksuite)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
 A CLI tool for managing ClickHouse database migrations, inspired by [Houseplant](https://github.com/pnuckowski/houseplant).
@@ -50,7 +50,7 @@ npx clicksuite init
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/gamebeastgg/clicksuite.git
+   git clone https://github.com/GamebeastGG/clicksuite.git
    cd clicksuite
    ```
 
@@ -313,7 +313,7 @@ When contributing:
 
 ## Contributing
 
-Contributions are welcome! Please feel free to open an issue or submit a pull request on the [GitHub repository](https://github.com/gamebeastgg/clicksuite).
+Contributions are welcome! Please feel free to open an issue or submit a pull request on the [GitHub repository](https://github.com/GamebeastGG/clicksuite).
 
 ## License
 
