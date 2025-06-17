@@ -1,8 +1,8 @@
 # Clicksuite - ClickHouse Migration Tool
 
 [![Tests](https://github.com/gamebeastgg/clicksuite/actions/workflows/test.yml/badge.svg)](https://github.com/gamebeastgg/clicksuite/actions/workflows/test.yml)
-[![GitHub Package Version](https://img.shields.io/github/package-json/v/gamebeastgg/clicksuite?label=package)](https://github.com/gamebeastgg/clicksuite/packages)
-[![GitHub Release](https://img.shields.io/github/v/release/gamebeastgg/clicksuite)](https://github.com/gamebeastgg/clicksuite/releases)
+[![NPM Version](https://img.shields.io/npm/v/clicksuite.svg)](https://www.npmjs.com/package/clicksuite)
+[![NPM Downloads](https://img.shields.io/npm/dm/clicksuite.svg)](https://www.npmjs.com/package/clicksuite)
 [![codecov](https://codecov.io/gh/gamebeastgg/clicksuite/branch/main/graph/badge.svg)](https://codecov.io/gh/gamebeastgg/clicksuite)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
@@ -29,28 +29,22 @@ Clicksuite helps you manage your ClickHouse schema changes in a structured and e
 
 ## Installation
 
-### From GitHub Packages
+### From NPM
 
-1. **Configure npm to use GitHub Packages for the `@gamebeastgg` scope:**
-   ```bash
-   npm config set @gamebeastgg:registry https://npm.pkg.github.com
-   ```
+**Global installation (recommended):**
+```bash
+npm install -g clicksuite
+```
 
-2. **Authenticate with GitHub Packages:**
-   ```bash
-   npm login --scope=@gamebeastgg --registry=https://npm.pkg.github.com
-   ```
-   Use your GitHub username and a personal access token with `read:packages` permission.
+**Local installation in your project:**
+```bash
+npm install --save-dev clicksuite
+```
 
-3. **Install the package globally:**
-   ```bash
-   npm install -g @gamebeastgg/clicksuite
-   ```
-
-4. **Or install locally in your project:**
-   ```bash
-   npm install --save-dev @gamebeastgg/clicksuite
-   ```
+**Using npx (no installation required):**
+```bash
+npx clicksuite init
+```
 
 ### For Development
 
@@ -75,17 +69,11 @@ Clicksuite helps you manage your ClickHouse schema changes in a structured and e
    npm link
    ```
 
-### Alternative Installation Methods
+### Verify Installation
 
-- **Using npx** (no installation required):
-  ```bash
-  npx @gamebeastgg/clicksuite init
-  ```
-
-- **Direct execution** (after cloning and building):
-  ```bash
-  node dist/index.js init
-  ```
+```bash
+clicksuite --help
+```
 
 ## Configuration
 
@@ -309,7 +297,7 @@ This project uses GitHub Actions for:
 
 - **Continuous Testing**: Runs tests on Node.js 18.x, 20.x, and 22.x
 - **Code Coverage**: Uploads coverage reports to Codecov
-- **GitHub Packages Publishing**: Automated publishing to GitHub Packages on releases
+- **NPM Publishing**: Automated publishing to NPM on releases
 - **Type Checking**: Validates TypeScript types
 - **Security Scanning**: Daily vulnerability scans and dependency reviews
 

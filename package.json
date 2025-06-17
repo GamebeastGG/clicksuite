@@ -1,5 +1,5 @@
 {
-  "name": "@gamebeastgg/clicksuite",
+  "name": "clicksuite",
   "version": "1.0.0",
   "main": "dist/index.js",
   "bin": {
@@ -28,9 +28,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gamebeastgg/clicksuite.git"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
   },
   "bugs": {
     "url": "https://github.com/gamebeastgg/clicksuite/issues"

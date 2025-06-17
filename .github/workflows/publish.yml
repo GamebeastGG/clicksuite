@@ -1,4 +1,4 @@
-name: Publish to GitHub Packages
+name: Publish to NPM
 
 on:
   release:
@@ -10,7 +10,7 @@ on:
         required: false
         type: string
       tag:
-        description: 'GitHub Packages dist-tag (latest, beta, alpha, etc.)'
+        description: 'NPM dist-tag (latest, beta, alpha, etc.)'
         required: false
         default: 'latest'
         type: choice
@@ -26,7 +26,7 @@ jobs:
     
     permissions:
       contents: read
-      packages: write # Required for GitHub Packages
+      id-token: write # Required for NPM provenance
 
     steps:
     - name: Checkout code
@@ -37,8 +37,7 @@ jobs:
       with:
         node-version: 20.x
         cache: 'npm'
-        registry-url: 'https://npm.pkg.github.com'
-        scope: '@gamebeastgg'
+        registry-url: 'https://registry.npmjs.org'
 
     - name: Install dependencies
       run: npm ci
@@ -53,15 +52,15 @@ jobs:
       if: github.event.inputs.version
       run: npm version ${{ github.event.inputs.version }} --no-git-tag-version
 
-    - name: Publish to GitHub Packages
+    - name: Publish to NPM
       run: |
         if [ "${{ github.event.inputs.tag }}" != "" ]; then
-          npm publish --tag ${{ github.event.inputs.tag }}
+          npm publish --tag ${{ github.event.inputs.tag }} --provenance --access public
         else
-          npm publish
+          npm publish --provenance --access public
         fi
       env:
-        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Create GitHub release (if manual dispatch)
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.version
@@ -73,7 +72,7 @@ jobs:
         release_name: Release v${{ github.event.inputs.version }}
         body: |
           Changes in this Release
-          - Published to GitHub Packages with tag: ${{ github.event.inputs.tag || 'latest' }}
+          - Published to NPM with tag: ${{ github.event.inputs.tag || 'latest' }}
         draft: false
         prerelease: ${{ github.event.inputs.tag != 'latest' }}
 
@@ -86,12 +85,12 @@ jobs:
     - name: Notify success
       if: needs.publish.result == 'success'
       run: |
-        echo "✅ Successfully published to GitHub Packages!"
-        echo "Package: @gamebeastgg/clicksuite"
+        echo "✅ Successfully published to NPM!"
+        echo "Package: clicksuite"
         echo "Tag: ${{ github.event.inputs.tag || 'latest' }}"
         
     - name: Notify failure
       if: needs.publish.result == 'failure'
       run: |
-        echo "❌ Failed to publish to GitHub Packages"
+        echo "❌ Failed to publish to NPM"
         exit 1

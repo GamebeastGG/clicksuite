@@ -17,8 +17,6 @@ node_modules/
 
 # Documentation files (keep only README.md)
 CONTRIBUTING.md
-GITHUB_PACKAGES_SETUP.md
-SETUP_SUMMARY.md
 
 # Test and coverage files
 coverage/
