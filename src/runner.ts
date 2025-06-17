@@ -305,6 +305,7 @@ production:
       }
     }
     console.log(chalk.greenBright('\nAll selected UP migrations applied successfully!'));
+    await this._updateSchemaFile();
   }
 
   async down(targetVersionToBecomeLatest?: string) {
@@ -414,6 +415,7 @@ production:
       }
     }
     console.log(chalk.greenBright('\nSelected DOWN migrations completed successfully!'));
+    await this._updateSchemaFile();
   }
 
   async reset() {
@@ -473,9 +475,75 @@ production:
       await this.db.clearMigrationsTable();
       await this.db.optimizeMigrationTable();
       console.log(chalk.greenBright('\nDatabase migrations have been reset successfully!'));
+      await this._updateSchemaFile();
     } catch (error: any) {
       console.error(chalk.bold.red('⚠️ Error clearing or optimizing migrations table during reset:'), error.message);
       throw error;
+    }
+  }
+
+  private async _updateSchemaFile() {
+    const schemaPath = path.join(this.context.migrationsDir, 'schema.sql');
+    
+    try {
+      const tables = await this.db.getDatabaseTables();
+      const materializedViews = await this.db.getDatabaseMaterializedViews();
+      const dictionaries = await this.db.getDatabaseDictionaries();
+      
+      let schemaContent = `-- Auto-generated schema file
+-- This file contains table definitions, materialized view definitions, and dictionary definitions
+-- Generated on: ${new Date().toISOString()}
+-- Environment: ${this.context.environment}
+-- Database: ${this.context.database}
+
+`;
+
+      // Get table definitions
+      if (tables.length > 0) {
+        schemaContent += '-- Tables\n';
+        for (const table of tables) {
+          try {
+            const createStatement = await this.db.getCreateTableQuery(table.name, 'TABLE');
+            schemaContent += `\n-- Table: ${table.name}\n`;
+            schemaContent += createStatement + ';\n';
+          } catch (e) {
+            console.warn(chalk.yellow(`Warning: Could not get CREATE statement for table ${table.name}`));
+          }
+        }
+      }
+
+      // Get materialized view definitions
+      if (materializedViews.length > 0) {
+        schemaContent += '\n-- Materialized Views\n';
+        for (const view of materializedViews) {
+          try {
+            const createStatement = await this.db.getCreateTableQuery(view.name, 'VIEW');
+            schemaContent += `\n-- Materialized View: ${view.name}\n`;
+            schemaContent += createStatement + ';\n';
+          } catch (e) {
+            console.warn(chalk.yellow(`Warning: Could not get CREATE statement for materialized view ${view.name}`));
+          }
+        }
+      }
+
+      // Get dictionary definitions
+      if (dictionaries.length > 0) {
+        schemaContent += '\n-- Dictionaries\n';
+        for (const dict of dictionaries) {
+          try {
+            const createStatement = await this.db.getCreateTableQuery(dict.name, 'DICTIONARY');
+            schemaContent += `\n-- Dictionary: ${dict.name}\n`;
+            schemaContent += createStatement + ';\n';
+          } catch (e) {
+            console.warn(chalk.yellow(`Warning: Could not get CREATE statement for dictionary ${dict.name}`));
+          }
+        }
+      }
+
+      await fs.writeFile(schemaPath, schemaContent);
+      console.log(chalk.dim(`Schema file updated: ${schemaPath}`));
+    } catch (error: any) {
+      console.warn(chalk.yellow(`Warning: Could not update schema file: ${error.message}`));
     }
   }
 
@@ -518,6 +586,7 @@ production:
     if (loadedCount > 0) {
         try {
             await this.db.optimizeMigrationTable();
+            await this._updateSchemaFile();
         } catch (e) { /* error already logged by optimizeMigrationTable */ }
     }
   }
