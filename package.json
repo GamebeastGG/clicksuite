@@ -1,9 +1,9 @@
 {
   "name": "clicksuite",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "dist/index.js",
   "bin": {
-    "clicksuite": "./dist/index.js"
+    "clicksuite": "dist/index.js"
   },
   "scripts": {
     "test": "jest",
@@ -27,12 +27,12 @@
   "description": "A CLI tool for managing ClickHouse database migrations with environment-specific configurations",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gamebeastgg/clicksuite.git"
+    "url": "git+https://github.com/GamebeastGG/clicksuite.git"
   },
   "bugs": {
-    "url": "https://github.com/gamebeastgg/clicksuite/issues"
+    "url": "https://github.com/GamebeastGG/clicksuite/issues"
   },
-  "homepage": "https://github.com/gamebeastgg/clicksuite#readme",
+  "homepage": "https://github.com/GamebeastGG/clicksuite#readme",
   "engines": {
     "node": ">=16.0.0"
   },

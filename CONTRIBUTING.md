@@ -167,7 +167,7 @@ clicksuite/
 
 ### Bug Fixes
 
-- Check the [issues page](https://github.com/gamebeastgg/clicksuite/issues) for known bugs
+- Check the [issues page](https://github.com/GamebeastGG/clicksuite/issues) for known bugs
 - Report new bugs with detailed reproduction steps
 
 ## Getting Help
