@@ -105,11 +105,15 @@ describe('Index (CLI)', () => {
       const { getContext } = require('../src/index');
       const argv = {
         nonInteractive: true,
-        'non-interactive': true
+        'non-interactive': true,
+        verbose: true,
+        dryRun: true
       };
       const context = getContext(argv);
 
       expect(context.nonInteractive).toBe(true);
+      expect(context.verbose).toBe(true);
+      expect(context.dryRun).toBe(true);
     });
 
     it('should set nonInteractive when CI environment is detected', () => {
@@ -354,6 +358,32 @@ describe('Index (CLI)', () => {
         nonInteractive: false
       });
       expect(context.cluster).toBeUndefined();
+    });
+
+    it('should set verbose flag from CLI arguments', () => {
+      process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/default';
+      
+      const { getContext } = require('../src/index');
+      const verboseContext = getContext({ verbose: true });
+      const nonVerboseContext = getContext({ verbose: false });
+      const defaultContext = getContext({});
+
+      expect(verboseContext.verbose).toBe(true);
+      expect(nonVerboseContext.verbose).toBe(false);
+      expect(defaultContext.verbose).toBe(false);
+    });
+
+    it('should set dryRun flag from CLI arguments', () => {
+      process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/default';
+      
+      const { getContext } = require('../src/index');
+      const dryRunContext = getContext({ dryRun: true });
+      const nonDryRunContext = getContext({ dryRun: false });
+      const defaultContext = getContext({});
+
+      expect(dryRunContext.dryRun).toBe(true);
+      expect(nonDryRunContext.dryRun).toBe(false);
+      expect(defaultContext.dryRun).toBe(false);
     });
   });
 });

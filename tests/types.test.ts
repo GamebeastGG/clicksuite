@@ -23,12 +23,16 @@ describe('Types', () => {
         cluster: 'test_cluster',
         migrationsDir: '/migrations',
         nonInteractive: true,
-        environment: 'production'
+        environment: 'production',
+        dryRun: true,
+        verbose: true
       };
 
       expect(context.url).toBe('https://testuser:testpass@clickhouse.example.com:8443/prod_db');
       expect(context.cluster).toBe('test_cluster');
       expect(context.nonInteractive).toBe(true);
+      expect(context.dryRun).toBe(true);
+      expect(context.verbose).toBe(true);
     });
 
     it('should handle minimal URL configuration', () => {

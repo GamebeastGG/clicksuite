@@ -505,4 +505,182 @@ describe('Db', () => {
       await expect(db.optimizeMigrationTable()).rejects.toThrow('Optimize failed');
     });
   });
+
+  describe('verbose logging', () => {
+    let consoleSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+    });
+
+    afterEach(() => {
+      consoleSpy.mockRestore();
+    });
+
+    it('should log initMigrationsTable query when verbose is true', async () => {
+      const verboseContext = { ...context, verbose: true };
+      const verboseDb = new Db(verboseContext);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await verboseDb.initMigrationsTable();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Executing initMigrationsTable query:'),
+        expect.any(String)
+      );
+    });
+
+    it('should not log initMigrationsTable query when verbose is false', async () => {
+      const nonVerboseContext = { ...context, verbose: false };
+      const nonVerboseDb = new Db(nonVerboseContext);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await nonVerboseDb.initMigrationsTable();
+
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Executing initMigrationsTable query:'),
+        expect.any(String)
+      );
+    });
+
+    it('should log single migration query when verbose is true', async () => {
+      const verboseContext = { ...context, verbose: true };
+      const verboseDb = new Db(verboseContext);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await verboseDb.executeMigration('CREATE TABLE test');
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Executing migration query:'),
+        expect.any(String)
+      );
+    });
+
+    it('should not log single migration query when verbose is false', async () => {
+      const nonVerboseContext = { ...context, verbose: false };
+      const nonVerboseDb = new Db(nonVerboseContext);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await nonVerboseDb.executeMigration('CREATE TABLE test');
+
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Executing migration query:'),
+        expect.any(String)
+      );
+    });
+
+    it('should log multiple migration queries when verbose is true', async () => {
+      const verboseContext = { ...context, verbose: true };
+      const verboseDb = new Db(verboseContext);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await verboseDb.executeMigration('CREATE TABLE test1; CREATE TABLE test2');
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Executing 2 migration queries:')
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Query 1/2:'),
+        expect.any(String)
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Query 2/2:'),
+        expect.any(String)
+      );
+    });
+
+    it('should not log multiple migration queries when verbose is false', async () => {
+      const nonVerboseContext = { ...context, verbose: false };
+      const nonVerboseDb = new Db(nonVerboseContext);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await nonVerboseDb.executeMigration('CREATE TABLE test1; CREATE TABLE test2');
+
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Executing 2 migration queries:')
+      );
+    });
+
+    it('should log markMigrationApplied when verbose is true', async () => {
+      const verboseContext = { ...context, verbose: true };
+      const verboseDb = new Db(verboseContext);
+      mockClient.insert.mockResolvedValue(undefined);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await verboseDb.markMigrationApplied('20240101120000');
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Marking migration applied with version:'),
+        expect.stringContaining('20240101120000')
+      );
+    });
+
+    it('should not log markMigrationApplied when verbose is false', async () => {
+      const nonVerboseContext = { ...context, verbose: false };
+      const nonVerboseDb = new Db(nonVerboseContext);
+      mockClient.insert.mockResolvedValue(undefined);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await nonVerboseDb.markMigrationApplied('20240101120000');
+
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Marking migration applied with version:'),
+        expect.any(String)
+      );
+    });
+
+    it('should log markMigrationRolledBack when verbose is true', async () => {
+      const verboseContext = { ...context, verbose: true };
+      const verboseDb = new Db(verboseContext);
+      mockClient.insert.mockResolvedValue(undefined);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await verboseDb.markMigrationRolledBack('20240101120000');
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Marking migration rolled back for version:'),
+        expect.stringContaining('20240101120000')
+      );
+    });
+
+    it('should not log markMigrationRolledBack when verbose is false', async () => {
+      const nonVerboseContext = { ...context, verbose: false };
+      const nonVerboseDb = new Db(nonVerboseContext);
+      mockClient.insert.mockResolvedValue(undefined);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await nonVerboseDb.markMigrationRolledBack('20240101120000');
+
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Marking migration rolled back for version:'),
+        expect.any(String)
+      );
+    });
+
+    it('should log clearMigrationsTable when verbose is true', async () => {
+      const verboseContext = { ...context, verbose: true };
+      const verboseDb = new Db(verboseContext);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await verboseDb.clearMigrationsTable();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Clearing migrations table:'),
+        expect.any(String)
+      );
+    });
+
+    it('should not log clearMigrationsTable when verbose is false', async () => {
+      const nonVerboseContext = { ...context, verbose: false };
+      const nonVerboseDb = new Db(nonVerboseContext);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await nonVerboseDb.clearMigrationsTable();
+
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Clearing migrations table:'),
+        expect.any(String)
+      );
+    });
+  });
 });
