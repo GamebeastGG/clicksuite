@@ -52,6 +52,7 @@ export function getContext(argv: { [key: string]: any }): Context {
     migrationsDir: actualMigrationsDir,
     nonInteractive: argv.nonInteractive !== undefined ? argv.nonInteractive as boolean : !!process.env.CI,
     environment: environment,
+    dryRun: argv.dryRun !== undefined ? argv.dryRun as boolean : false,
   };
 }
 
@@ -138,10 +139,16 @@ yargs(hideBin(process.argv))
     'migrate:up [migrationVersion]',
     'Run pending migrations. If no version is specified, runs all pending.',
     (yargsInstance) => {
-      return yargsInstance.positional('migrationVersion', {
-        describe: 'Optional: Target migration version to run up to (inclusive).',
-        type: 'string',
-      });
+      return yargsInstance
+        .positional('migrationVersion', {
+          describe: 'Optional: Target migration version to run up to (inclusive).',
+          type: 'string',
+        })
+        .option('dry-run', {
+          describe: 'Preview migrations without executing them',
+          type: 'boolean',
+          default: false,
+        });
     },
     async (argv) => {
       const context = getContext(argv);
@@ -159,10 +166,16 @@ yargs(hideBin(process.argv))
     'migrate:down [migrationVersion]',
     'Roll back migrations. If no version, rolls back the last applied. Otherwise, rolls back the specified version.',
     (yargsInstance) => {
-      return yargsInstance.positional('migrationVersion', {
-        describe: 'Optional: The migration version to roll back (e.g., \'20230101120000\'). If omitted, rolls back the last applied migration.',
-        type: 'string',
-      });
+      return yargsInstance
+        .positional('migrationVersion', {
+          describe: 'Optional: The migration version to roll back (e.g., \'20230101120000\'). If omitted, rolls back the last applied migration.',
+          type: 'string',
+        })
+        .option('dry-run', {
+          describe: 'Preview rollbacks without executing them',
+          type: 'boolean',
+          default: false,
+        });
     },
     async (argv) => {
       const context = getContext(argv);

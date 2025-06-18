@@ -4,6 +4,7 @@ export interface Context {
   migrationsDir: string; // Absolute path to the migrations directory (e.g., /path/to/project/migrations)
   nonInteractive?: boolean; // For future use in confirming actions
   environment: string; // e.g., 'development', 'production', 'test'
+  dryRun?: boolean; // For previewing migrations without executing them
   readonly database: string; // Extracted from URL for convenience
 }
 

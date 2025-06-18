@@ -281,7 +281,8 @@ production:
   }
 
   async up(targetVersion?: string) {
-    console.log(chalk.blue(`Executing UP migrations for environment '${this.context.environment}'... ${targetVersion ? 'Target: ' + targetVersion : 'All pending'}`));
+    const actionWord = this.context.dryRun ? 'Previewing' : 'Executing';
+    console.log(chalk.blue(`${actionWord} UP migrations for environment '${this.context.environment}'... ${targetVersion ? 'Target: ' + targetVersion : 'All pending'}`));
     const localMigrations = await this._getLocalMigrations();
     const dbAppliedMigrations = await this.db.getAppliedMigrations();
     const appliedVersions = new Set(dbAppliedMigrations.map(m => m.version));
@@ -291,7 +292,10 @@ production:
       .sort((a, b) => a.version.localeCompare(b.version));
 
     if (pendingMigrations.length === 0) {
-      console.log(chalk.green('No pending migrations to apply. Database is up-to-date.'));
+      const message = this.context.dryRun 
+        ? 'No pending migrations to preview. Database is up-to-date.'
+        : 'No pending migrations to apply. Database is up-to-date.';
+      console.log(chalk.green(message));
       return;
     }
 
@@ -309,35 +313,83 @@ production:
       }
     }
 
-    console.log(chalk.yellow(`Found ${migrationsToRun.length} migration(s) to apply.`));
+    if (this.context.dryRun) {
+      console.log(chalk.cyan(`DRY RUN: The following ${migrationsToRun.length} migration(s) would be applied:`));
+      migrationsToRun.forEach(m => {
+        console.log(chalk.cyan(`  ✓ ${m.version} - ${m.name}`));
+      });
+      console.log('');
+    } else {
+      console.log(chalk.yellow(`Found ${migrationsToRun.length} migration(s) to apply.`));
+    }
 
     for (const migration of migrationsToRun) {
-      console.log(chalk.magenta(`\nApplying migration: ${migration.version} - ${migration.name}`));
+      const migrationTitle = this.context.dryRun 
+        ? `DRY RUN: Migration ${migration.version} - ${migration.name}` 
+        : `Applying migration: ${migration.version} - ${migration.name}`;
+      
+      console.log(chalk.magenta(`\n${migrationTitle}`));
+      
       if (!migration.upSQL) {
-        console.warn(chalk.yellow(`Skipping ${migration.version}: No 'up' SQL found for environment '${this.context.environment}'.`));
+        const skipMessage = this.context.dryRun
+          ? `Would skip ${migration.version}: No 'up' SQL found for environment '${this.context.environment}'.`
+          : `Skipping ${migration.version}: No 'up' SQL found for environment '${this.context.environment}'.`;
+        console.warn(chalk.yellow(skipMessage));
         continue;
       }
+
       try {
-        console.log(chalk.gray('--- UP SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
-        console.log(chalk.gray(migration.upSQL.trim()));
-        console.log(chalk.gray('--------------'));
-        if (migration.table || migration.database) {
-            const details = [];
-            if (migration.database) details.push(`database: ${migration.database}`);
-            if (migration.table) details.push(`table: ${migration.table}`);
-            console.log(chalk.dim(`(Using ${details.join(', ')})`));
+        if (this.context.dryRun) {
+          console.log(chalk.cyan('┌─') + chalk.cyan(`─ DRY RUN: Migration ${migration.version} - ${migration.name} `).padEnd(70, '─') + chalk.cyan('─'));
+          console.log(chalk.cyan('│') + ` Environment: ${this.context.environment}`);
+          if (migration.database) console.log(chalk.cyan('│') + ` Database: ${migration.database}`);
+          if (migration.table) console.log(chalk.cyan('│') + ` Table: ${migration.table}`);
+          console.log(chalk.cyan('│') + ' ');
+          
+          // Count queries for display
+          const queryCount = migration.upSQL.split(';').filter(q => q.trim().length > 0).length;
+          const queryLabel = queryCount === 1 ? 'query' : 'queries';
+          console.log(chalk.cyan('│') + ` SQL to execute (${queryCount} ${queryLabel}):`);
+          
+          // Show each query indented
+          const queries = migration.upSQL.split(';').filter(q => q.trim().length > 0);
+          queries.forEach(query => {
+            console.log(chalk.cyan('│') + `   ${query.trim()};`);
+            if (queries.indexOf(query) < queries.length - 1) {
+              console.log(chalk.cyan('│') + '   ');
+            }
+          });
+          
+          console.log(chalk.cyan('└') + chalk.cyan('─'.repeat(70)));
+        } else {
+          console.log(chalk.gray('--- UP SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
+          console.log(chalk.gray(migration.upSQL.trim()));
+          console.log(chalk.gray('--------------'));
+          if (migration.table || migration.database) {
+              const details = [];
+              if (migration.database) details.push(`database: ${migration.database}`);
+              if (migration.table) details.push(`table: ${migration.table}`);
+              console.log(chalk.dim(`(Using ${details.join(', ')})`));
+          }
+          await this.db.executeMigration(migration.upSQL, migration.querySettings);
+          await this.db.markMigrationApplied(migration.version);
+          console.log(chalk.green(`Successfully applied ${migration.version} - ${migration.name}`));
         }
-        await this.db.executeMigration(migration.upSQL, migration.querySettings);
-        await this.db.markMigrationApplied(migration.version);
-        console.log(chalk.green(`Successfully applied ${migration.version} - ${migration.name}`));
       } catch (error: any) {
-        console.error(chalk.bold.red(`⚠️ Error applying migration ${migration.version} - ${migration.name}:`), error.message);
-        console.error(chalk.bold.red('Migration process halted due to error.'));
-        throw error;
+        if (!this.context.dryRun) {
+          console.error(chalk.bold.red(`⚠️ Error applying migration ${migration.version} - ${migration.name}:`), error.message);
+          console.error(chalk.bold.red('Migration process halted due to error.'));
+          throw error;
+        }
       }
     }
-    console.log(chalk.greenBright('\nAll selected UP migrations applied successfully!'));
-    await this._updateSchemaFile();
+    
+    if (this.context.dryRun) {
+      console.log(chalk.cyan(`\nDRY RUN COMPLETE: ${migrationsToRun.length} migration(s) would be applied (no changes made)`));
+    } else {
+      console.log(chalk.greenBright('\nAll selected UP migrations applied successfully!'));
+      await this._updateSchemaFile();
+    }
   }
 
   async down(targetVersionToBecomeLatest?: string) {
@@ -357,7 +409,8 @@ production:
     if (!targetVersionToBecomeLatest) {
       // Case 1: No target version specified - roll back the single last applied migration
       const lastAppliedDbRecord = appliedDbMigrations[appliedDbMigrations.length - 1];
-      console.log(chalk.blue(`No specific version provided. Attempting to roll back the last applied migration: ${lastAppliedDbRecord.version}`));
+      const actionWord = this.context.dryRun ? 'Previewing rollback of' : 'Attempting to roll back';
+      console.log(chalk.blue(`No specific version provided. ${actionWord} the last applied migration: ${lastAppliedDbRecord.version}`));
       const correspondingLocalFile = localMigrationsMap.get(lastAppliedDbRecord.version);
       if (correspondingLocalFile) {
         migrationsToEffectivelyRollback.push(correspondingLocalFile);
@@ -367,7 +420,8 @@ production:
       }
     } else {
       // Case 2: Target version specified - roll back all migrations *after* this version
-      console.log(chalk.blue(`Attempting to roll back migrations until version ${targetVersionToBecomeLatest} is the latest applied (or only one if it's the target)...`));
+      const actionWord = this.context.dryRun ? 'Previewing rollback of migrations' : 'Attempting to roll back migrations';
+      console.log(chalk.blue(`${actionWord} until version ${targetVersionToBecomeLatest} is the latest applied (or only one if it's the target)...`));
 
       const targetIndexInApplied = appliedDbMigrations.findIndex(m => m.version === targetVersionToBecomeLatest);
 
@@ -405,52 +459,97 @@ production:
       return;
     }
 
-    console.log(chalk.magenta(`The following ${migrationsToEffectivelyRollback.length} migration(s) will be rolled back (in order):`));
-    migrationsToEffectivelyRollback.forEach(m => console.log(chalk.magenta(`  - ${m.version} - ${m.name}`)));
+    if (this.context.dryRun) {
+      console.log(chalk.cyan(`DRY RUN: The following ${migrationsToEffectivelyRollback.length} migration(s) would be rolled back (in order):`));
+      migrationsToEffectivelyRollback.forEach(m => console.log(chalk.cyan(`  ✓ ${m.version} - ${m.name}`)));
+      console.log('');
+    } else {
+      console.log(chalk.magenta(`The following ${migrationsToEffectivelyRollback.length} migration(s) will be rolled back (in order):`));
+      migrationsToEffectivelyRollback.forEach(m => console.log(chalk.magenta(`  - ${m.version} - ${m.name}`)));
 
-    if (!this.context.nonInteractive) {
-      const answers = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'confirmation',
-          message: `Are you sure you want to roll back these ${migrationsToEffectivelyRollback.length} migration(s)?`,
-          default: false,
-        },
-      ]);
-      if (!answers.confirmation) {
-        console.log(chalk.gray('Rollback cancelled by user.'));
-        return;
+      if (!this.context.nonInteractive) {
+        const answers = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'confirmation',
+            message: `Are you sure you want to roll back these ${migrationsToEffectivelyRollback.length} migration(s)?`,
+            default: false,
+          },
+        ]);
+        if (!answers.confirmation) {
+          console.log(chalk.gray('Rollback cancelled by user.'));
+          return;
+        }
       }
     }
 
     for (const migration of migrationsToEffectivelyRollback) {
+      const migrationTitle = this.context.dryRun 
+        ? `DRY RUN: Rolling back ${migration.version} - ${migration.name}` 
+        : `Rolling back migration: ${migration.version} - ${migration.name}`;
+      
+      console.log(chalk.magenta(`\n${migrationTitle}`));
+      
       if (!migration.downSQL) {
-        console.error(chalk.red(`No 'down' SQL found for migration ${migration.version} - ${migration.name} in environment '${this.context.environment}'. Skipping.`));
+        const skipMessage = this.context.dryRun
+          ? `Would skip ${migration.version}: No 'down' SQL found for environment '${this.context.environment}'.`
+          : `Skipping ${migration.version}: No 'down' SQL found for environment '${this.context.environment}'.`;
+        console.error(chalk.red(skipMessage));
         continue; // Or halt, depending on desired strictness
       }
 
-      console.log(chalk.magenta(`\nRolling back migration: ${migration.version} - ${migration.name}`));
       try {
-        console.log(chalk.gray('--- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
-        console.log(chalk.gray(migration.downSQL.trim()));
-        console.log(chalk.gray('----------------'));
-        if (migration.table || migration.database) {
-          const details = [];
-          if (migration.database) details.push(`database: ${migration.database}`);
-          if (migration.table) details.push(`table: ${migration.table}`);
-          console.log(chalk.dim(`(Using ${details.join(', ')})`));
+        if (this.context.dryRun) {
+          console.log(chalk.cyan('┌─') + chalk.cyan(`─ DRY RUN: Rollback ${migration.version} - ${migration.name} `).padEnd(70, '─') + chalk.cyan('─'));
+          console.log(chalk.cyan('│') + ` Environment: ${this.context.environment}`);
+          if (migration.database) console.log(chalk.cyan('│') + ` Database: ${migration.database}`);
+          if (migration.table) console.log(chalk.cyan('│') + ` Table: ${migration.table}`);
+          console.log(chalk.cyan('│') + ' ');
+          
+          // Count queries for display
+          const queryCount = migration.downSQL.split(';').filter(q => q.trim().length > 0).length;
+          const queryLabel = queryCount === 1 ? 'query' : 'queries';
+          console.log(chalk.cyan('│') + ` SQL to execute (${queryCount} ${queryLabel}):`);
+          
+          // Show each query indented
+          const queries = migration.downSQL.split(';').filter(q => q.trim().length > 0);
+          queries.forEach(query => {
+            console.log(chalk.cyan('│') + `   ${query.trim()};`);
+            if (queries.indexOf(query) < queries.length - 1) {
+              console.log(chalk.cyan('│') + '   ');
+            }
+          });
+          
+          console.log(chalk.cyan('└') + chalk.cyan('─'.repeat(70)));
+        } else {
+          console.log(chalk.gray('--- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
+          console.log(chalk.gray(migration.downSQL.trim()));
+          console.log(chalk.gray('----------------'));
+          if (migration.table || migration.database) {
+            const details = [];
+            if (migration.database) details.push(`database: ${migration.database}`);
+            if (migration.table) details.push(`table: ${migration.table}`);
+            console.log(chalk.dim(`(Using ${details.join(', ')})`));
+          }
+          await this.db.executeMigration(migration.downSQL, migration.querySettings);
+          await this.db.markMigrationRolledBack(migration.version);
+          console.log(chalk.green(`Successfully rolled back ${migration.version} - ${migration.name}`));
         }
-        await this.db.executeMigration(migration.downSQL, migration.querySettings);
-        await this.db.markMigrationRolledBack(migration.version);
-        console.log(chalk.green(`Successfully rolled back ${migration.version} - ${migration.name}`));
       } catch (error: any) {
-        console.error(chalk.bold.red(`⚠️ Error rolling back migration ${migration.version} - ${migration.name}:`), error.message);
-        console.error(chalk.bold.red('Rollback process halted due to error.'));
-        throw error; // Re-throw to stop further rollbacks on error
+        if (!this.context.dryRun) {
+          console.error(chalk.bold.red(`⚠️ Error rolling back migration ${migration.version} - ${migration.name}:`), error.message);
+          console.error(chalk.bold.red('Rollback process halted due to error.'));
+          throw error; // Re-throw to stop further rollbacks on error
+        }
       }
     }
-    console.log(chalk.greenBright('\nSelected DOWN migrations completed successfully!'));
-    await this._updateSchemaFile();
+    
+    if (this.context.dryRun) {
+      console.log(chalk.cyan(`\nDRY RUN COMPLETE: ${migrationsToEffectivelyRollback.length} migration(s) would be rolled back (no changes made)`));
+    } else {
+      console.log(chalk.greenBright('\nSelected DOWN migrations completed successfully!'));
+      await this._updateSchemaFile();
+    }
   }
 
   async reset() {
