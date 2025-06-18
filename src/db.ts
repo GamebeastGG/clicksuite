@@ -163,7 +163,7 @@ export class Db {
   async getDatabaseTables(): Promise<{name: string}[]> {
     try {
       const resultSet = await this.client.query({
-        query: `SHOW TABLES FROM ${this.context.database}`,
+        query: `SELECT name FROM system.tables WHERE database = '${this.context.database}' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'`,
         format: 'JSONEachRow'
       });
       return await resultSet.json() as {name: string}[];
