@@ -67,17 +67,14 @@ describe('Index (CLI)', () => {
   });
 
   describe('getContext', () => {
-    it('should create context with default values', () => {
-      const { getContext } = require('../src/index');
+    it('should create context with default values when CLICKHOUSE_URL is provided', () => {
+      process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/default';
       
+      const { getContext } = require('../src/index');
       const context = getContext({});
 
       expect(context).toMatchObject({
-        protocol: 'http',
-        host: 'localhost',
-        port: '8123',
-        username: 'default',
-        password: '',
+        url: 'http://default@localhost:8123/default',
         database: 'default',
         environment: 'development',
         nonInteractive: false
@@ -85,12 +82,7 @@ describe('Index (CLI)', () => {
     });
 
     it('should use environment variables when available', () => {
-      process.env.CLICKHOUSE_PROTOCOL = 'https';
-      process.env.CLICKHOUSE_HOST = 'prod.clickhouse.com';
-      process.env.CLICKHOUSE_PORT = '8443';
-      process.env.CLICKHOUSE_USERNAME = 'prod_user';
-      process.env.CLICKHOUSE_PASSWORD = 'secret';
-      process.env.CLICKHOUSE_DATABASE = 'prod_db';
+      process.env.CLICKHOUSE_URL = 'https://prod_user:secret@prod.clickhouse.com:8443/prod_db';
       process.env.CLICKHOUSE_CLUSTER = 'prod_cluster';
       process.env.CLICKSUITE_ENVIRONMENT = 'production';
       process.env.CLICKSUITE_MIGRATIONS_DIR = '/custom/migrations';
@@ -99,11 +91,7 @@ describe('Index (CLI)', () => {
       const context = getContext({});
 
       expect(context).toMatchObject({
-        protocol: 'https',
-        host: 'prod.clickhouse.com',
-        port: '8443',
-        username: 'prod_user',
-        password: 'secret',
+        url: 'https://prod_user:secret@prod.clickhouse.com:8443/prod_db',
         database: 'prod_db',
         cluster: 'prod_cluster',
         environment: 'production'
@@ -112,8 +100,9 @@ describe('Index (CLI)', () => {
     });
 
     it('should handle CLI arguments', () => {
-      const { getContext } = require('../src/index');
+      process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/default';
       
+      const { getContext } = require('../src/index');
       const argv = {
         nonInteractive: true,
         'non-interactive': true
@@ -124,6 +113,7 @@ describe('Index (CLI)', () => {
     });
 
     it('should set nonInteractive when CI environment is detected', () => {
+      process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/default';
       process.env.CI = 'true';
 
       const { getContext } = require('../src/index');
@@ -133,6 +123,7 @@ describe('Index (CLI)', () => {
     });
 
     it('should resolve migrations directory to absolute path', () => {
+      process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/default';
       process.env.CLICKSUITE_MIGRATIONS_DIR = 'relative/path';
 
       const { getContext } = require('../src/index');
@@ -143,12 +134,61 @@ describe('Index (CLI)', () => {
     });
 
     it('should handle undefined cluster environment variable', () => {
+      process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/default';
       process.env.CLICKHOUSE_CLUSTER = '';
 
       const { getContext } = require('../src/index');
       const context = getContext({});
 
       expect(context.cluster).toBeUndefined();
+    });
+
+    it('should use CLICKHOUSE_URL when provided', () => {
+      process.env.CLICKHOUSE_URL = 'https://user:pass@clickhouse.example.com:8443/production_db';
+
+      const { getContext } = require('../src/index');
+      const context = getContext({});
+
+      expect(context.url).toBe('https://user:pass@clickhouse.example.com:8443/production_db');
+      expect(context.database).toBe('production_db');
+    });
+
+    it('should parse CLICKHOUSE_URL without credentials', () => {
+      process.env.CLICKHOUSE_URL = 'http://localhost:8123/testdb';
+
+      const { getContext } = require('../src/index');
+      const context = getContext({});
+
+      expect(context.url).toBe('http://localhost:8123/testdb');
+      expect(context.database).toBe('testdb');
+    });
+
+    it('should handle cluster configuration with URL', () => {
+      process.env.CLICKHOUSE_URL = 'http://user:pass@localhost:8123/db';
+      process.env.CLICKHOUSE_CLUSTER = 'my_cluster';
+
+      const { getContext } = require('../src/index');
+      const context = getContext({});
+
+      expect(context.url).toBe('http://user:pass@localhost:8123/db');
+      expect(context.cluster).toBe('my_cluster');
+      expect(context.database).toBe('db');
+    });
+
+    it('should require CLICKHOUSE_URL environment variable', () => {
+      delete process.env.CLICKHOUSE_URL;
+
+      const { getContext } = require('../src/index');
+      
+      expect(() => getContext({})).toThrow('CLICKHOUSE_URL environment variable is required');
+    });
+
+    it('should throw error for invalid CLICKHOUSE_URL format', () => {
+      process.env.CLICKHOUSE_URL = 'invalid-url-format';
+
+      const { getContext } = require('../src/index');
+      
+      expect(() => getContext({})).toThrow('Invalid CLICKHOUSE_URL format');
     });
   });
 
@@ -160,16 +200,16 @@ describe('Index (CLI)', () => {
 
     it('should load dotenv configuration', () => {
       // Test that environment variables are properly loaded and used
-      process.env.TEST_CLICKHOUSE_HOST = 'test.example.com';
+      process.env.CLICKHOUSE_URL = 'http://test@test.example.com:8123/testdb';
       
       const { getContext } = require('../src/index');
       const context = getContext({});
       
       // This indirectly tests that dotenv is working by showing env vars are used
-      expect(typeof context.host).toBe('string');
-      expect(typeof context.database).toBe('string');
+      expect(context.url).toBe('http://test@test.example.com:8123/testdb');
+      expect(context.database).toBe('testdb');
       
-      delete process.env.TEST_CLICKHOUSE_HOST;
+      delete process.env.CLICKHOUSE_URL;
     });
 
     describe('Command Error Handling', () => {
@@ -236,17 +276,12 @@ describe('Index (CLI)', () => {
 
     describe('Runner Integration', () => {
       it('should create runner with correct context', async () => {
-        process.env.CLICKHOUSE_HOST = 'test.host';
-        process.env.CLICKHOUSE_DATABASE = 'test_db';
+        process.env.CLICKHOUSE_URL = 'http://default@test.host:8123/test_db';
 
         mockRunnerInstance.init.mockResolvedValue(undefined);
 
         new Runner({
-          protocol: 'http',
-          host: 'test.host',
-          port: '8123',
-          username: 'default',
-          password: '',
+          url: 'http://default@test.host:8123/test_db',
           database: 'test_db',
           migrationsDir: expect.any(String),
           environment: 'development',
@@ -255,7 +290,7 @@ describe('Index (CLI)', () => {
 
         expect(mockRunner).toHaveBeenCalledWith(
           expect.objectContaining({
-            host: 'test.host',
+            url: 'http://default@test.host:8123/test_db',
             database: 'test_db'
           })
         );
@@ -293,6 +328,7 @@ describe('Index (CLI)', () => {
   describe('Environment Configuration', () => {
     it('should prioritize CLI flags over environment variables', () => {
       process.env.CI = 'true'; // This would normally set nonInteractive to true
+      process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/default';
 
       const { getContext } = require('../src/index');
       const context = getContext({ nonInteractive: false });
@@ -300,14 +336,9 @@ describe('Index (CLI)', () => {
       expect(context.nonInteractive).toBe(false);
     });
 
-    it('should handle missing environment variables gracefully', () => {
-      // Clear all relevant environment variables
-      delete process.env.CLICKHOUSE_PROTOCOL;
-      delete process.env.CLICKHOUSE_HOST;
-      delete process.env.CLICKHOUSE_PORT;
-      delete process.env.CLICKHOUSE_USERNAME;
-      delete process.env.CLICKHOUSE_PASSWORD;
-      delete process.env.CLICKHOUSE_DATABASE;
+    it('should handle missing optional environment variables gracefully', () => {
+      // Set required URL but clear optional ones
+      process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/default';
       delete process.env.CLICKHOUSE_CLUSTER;
       delete process.env.CLICKSUITE_ENVIRONMENT;
       delete process.env.CLICKSUITE_MIGRATIONS_DIR;
@@ -317,11 +348,7 @@ describe('Index (CLI)', () => {
       const context = getContext({});
 
       expect(context).toMatchObject({
-        protocol: 'http',
-        host: 'localhost',
-        port: '8123',
-        username: 'default',
-        password: '',
+        url: 'http://default@localhost:8123/default',
         database: 'default',
         environment: 'development',
         nonInteractive: false

@@ -84,14 +84,12 @@ Clicksuite is configured using environment variables, typically loaded from a `.
 **Example `.env` file:**
 
 ```env
-# ClickHouse Connection Details
-CLICKHOUSE_HOST=localhost
-CLICKHOUSE_PORT=8123
-CLICKHOUSE_PROTOCOL=http # or https
-CLICKHOUSE_USERNAME=default
-CLICKHOUSE_PASSWORD=
-CLICKHOUSE_DATABASE=default
-CLICKHOUSE_CLUSTER= # Optional: specify your ClickHouse cluster name if applicable
+# ClickHouse Connection Details (REQUIRED)
+# Format: protocol://username:password@host:port/database
+CLICKHOUSE_URL=http://default@localhost:8123/default
+
+# Optional: specify your ClickHouse cluster name if applicable
+CLICKHOUSE_CLUSTER=
 
 # Clicksuite Settings
 # Base directory for Clicksuite files. Actual migration .yml files go into a 'migrations' subdirectory.
@@ -103,12 +101,20 @@ CLICKSUITE_MIGRATIONS_DIR=./db_migrations
 CLICKSUITE_ENVIRONMENT=development
 ```
 
+**Examples of CLICKHOUSE_URL values:**
+
+- Local development: `http://default@localhost:8123/my_database`
+- With credentials: `https://username:password@clickhouse.example.com:8443/production_db`
+- Docker Compose: `http://default@clickhouse:8123/analytics`
+
 **Important Notes:**
 
 *   The actual migration `.yml` files are stored in a subdirectory named `migrations` under the path specified by `CLICKSUITE_MIGRATIONS_DIR`.
     *   For example, if `CLICKSUITE_MIGRATIONS_DIR=./db_configs`, then migrations will be in `./db_configs/migrations/`.
     *   If `CLICKSUITE_MIGRATIONS_DIR` is not set, it defaults to the project root (`.`), so migrations will be in `./migrations/`.
-*   The `__clicksuite_migrations` table will be created in the specified `CLICKHOUSE_DATABASE` to track migration statuses.
+*   The `__clicksuite_migrations` table will be created in the `default` database to track migration statuses across all databases.
+* If you usually run queries on a cluster using `ON CLUSTER '{cluster}'`, set the `CLICKHOUSE_CLUSTER` environment variable to `'{cluster}'`
+  * For example, `CLICKHOUSE_CLUSTER='{cluster}'`
 
 ## Usage
 
@@ -127,7 +133,7 @@ clicksuite <command> [options]
 *   **`clicksuite init`**
     *   Initializes Clicksuite for the current project.
     *   Creates the migrations directory (e.g., `<CLICKSUITE_MIGRATIONS_DIR>/migrations/`).
-    *   Creates the `__clicksuite_migrations` table in your ClickHouse database.
+    *   Creates the `__clicksuite_migrations` table in the `default` database to track migrations.
     *   Tests the connection to ClickHouse.
 
 *   **`clicksuite generate <migration_name>`**
@@ -168,26 +174,30 @@ clicksuite <command> [options]
 
 Migration files are YAML (`.yml`) and should be placed in the `<CLICKSUITE_MIGRATIONS_DIR>/migrations/` directory. The filename format is `YYYYMMDDHHMMSS_description.yml`.
 
-Each migration file supports environment-specific SQL and settings. The `{table}` placeholder in `up` or `down` SQL will be replaced by the value of the `table` field from the YAML.
+Each migration file supports environment-specific SQL and settings. The `{table}` and `{database}` placeholders in `up` or `down` SQL will be replaced by the values of the `table` and `database` fields from the YAML.
 
 **Example `YYYYMMDDHHMMSS_create_widgets.yml`:**
 
 ```yaml
 version: "20240115103000"
 name: "create widgets table"
-table: "widgets_table_prod" # Or widgets_table_dev etc.
+table: "widgets_table"
+database: "analytics_db"
 
 development: &development_defaults
   up: |
-    -- SQL for development up
-    CREATE TABLE IF NOT EXISTS {table} (
+    -- Create database if it doesn't exist
+    CREATE DATABASE IF NOT EXISTS {database};
+    
+    -- Create table in the specified database
+    CREATE TABLE IF NOT EXISTS {database}.{table} (
       id UInt64,
       name String,
       dev_notes String DEFAULT 'dev only'
     ) ENGINE = MergeTree() ORDER BY id;
   down: |
     -- SQL for development down
-    DROP TABLE IF EXISTS {table};
+    DROP TABLE IF EXISTS {database}.{table};
   settings:
     allow_experimental_object_type: 1 # Example setting
 
@@ -195,7 +205,7 @@ test:
   <<: *development_defaults
   # up: |
   #   -- Override SQL for test up if needed
-  #   ALTER TABLE {table} ADD COLUMN test_flag UInt8 DEFAULT 1;
+  #   ALTER TABLE {database}.{table} ADD COLUMN test_flag UInt8 DEFAULT 1;
   # down: |
   #   -- Override SQL for test down if needed
 
@@ -203,8 +213,11 @@ production:
   # Typically, you might not want to inherit DROP TABLE for production down by default
   # Or provide a very specific, non-destructive down script.
   up: |
+    -- Create database if it doesn't exist
+    CREATE DATABASE IF NOT EXISTS {database};
+    
     -- SQL for production up
-    CREATE TABLE IF NOT EXISTS {table} (
+    CREATE TABLE IF NOT EXISTS {database}.{table} (
       id UInt64,
       name String,
       critical_prod_field String
@@ -218,8 +231,13 @@ production:
     # send_timeout: 600
 ```
 
+**Field Reference:**
+
 *   The `version` and `name` fields are primarily for display and tracking.
-*   The `table` field is optional but useful for string replacement in your SQL if your `up`/`down` scripts for a migration primarily target a single table.
+*   The `table` field is optional but useful for string replacement in your SQL if your migration targets a specific table.
+*   The `database` field is optional but allows you to target different databases. If specified, use `{database}.{table}` format in your SQL.
+*   **Migration Tracking**: All migrations are tracked centrally in the `default.__clicksuite_migrations` table, regardless of which database they target.
+*   **Database Creation**: You can create databases in your migrations using `CREATE DATABASE IF NOT EXISTS {database}` - this will be tracked in the generated `schema.sql`.
 *   Each environment (`development`, `test`, `production`) can define its own `up` SQL, `down` SQL, and `settings` (ClickHouse settings to apply during execution).
 *   YAML anchors (`&anchor_name`) and aliases (`<<: *anchor_name`) can be used to reduce redundancy (e.g., `test` and `production` can inherit from `development_defaults`). `js-yaml` (used internally) resolves these aliases upon loading.
 
@@ -322,16 +340,19 @@ import { Runner, Db, Context } from 'clicksuite';
 
 // Create a context for your ClickHouse configuration
 const context: Context = {
-  protocol: 'http',
-  host: 'localhost',
-  port: '8123',
-  username: 'default',
-  password: '',
-  database: 'my_database',
+  url: 'http://default@localhost:8123/my_database',
+  database: 'my_database', // Extracted from URL
   migrationsDir: '/path/to/migrations',
   environment: 'development',
   nonInteractive: false
 };
+
+// Or use the getContext helper function with environment variables
+import { getContext } from 'clicksuite';
+
+// Set CLICKHOUSE_URL environment variable first
+process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/my_database';
+const context = getContext({});
 
 // Run migrations programmatically
 const runner = new Runner(context);

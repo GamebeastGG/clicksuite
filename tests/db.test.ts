@@ -23,11 +23,7 @@ describe('Db', () => {
     mockCreateClient.mockReturnValue(mockClient);
 
     context = {
-      protocol: 'http',
-      host: 'localhost',
-      port: '8123',
-      username: 'default',
-      password: '',
+      url: 'http://default@localhost:8123/test_db',
       database: 'test_db',
       migrationsDir: '/tmp/migrations',
       environment: 'test'
@@ -41,24 +37,38 @@ describe('Db', () => {
   });
 
   describe('constructor', () => {
-    it('should create ClickHouse client with correct configuration', () => {
+    it('should create ClickHouse client with URL configuration', () => {
       expect(mockCreateClient).toHaveBeenCalledWith({
-        url: 'http://localhost:8123',
-        username: 'default',
-        password: '',
-        database: 'test_db',
+        url: 'http://default@localhost:8123/test_db',
       });
     });
 
-    it('should handle HTTPS protocol', () => {
-      const httpsContext = { ...context, protocol: 'https', port: '8443' };
+    it('should handle HTTPS URLs', () => {
+      const httpsContext: Context = {
+        url: 'https://user:pass@clickhouse.example.com:8443/prod_db',
+        database: 'prod_db',
+        migrationsDir: '/tmp/migrations',
+        environment: 'test'
+      };
       new Db(httpsContext);
 
       expect(mockCreateClient).toHaveBeenCalledWith({
-        url: 'https://localhost:8443',
-        username: 'default',
-        password: '',
+        url: 'https://user:pass@clickhouse.example.com:8443/prod_db',
+      });
+    });
+
+    it('should handle URLs with cluster configuration', () => {
+      const clusterContext: Context = {
+        url: 'http://default@localhost:8123/test_db',
         database: 'test_db',
+        cluster: 'test_cluster',
+        migrationsDir: '/tmp/migrations',
+        environment: 'test'
+      };
+      new Db(clusterContext);
+
+      expect(mockCreateClient).toHaveBeenCalledWith({
+        url: 'http://default@localhost:8123/test_db',
       });
     });
   });
@@ -82,7 +92,7 @@ describe('Db', () => {
       await db.initMigrationsTable();
 
       expect(mockClient.command).toHaveBeenCalledWith({
-        query: expect.stringContaining('CREATE TABLE IF NOT EXISTS test_db.__clicksuite_migrations'),
+        query: expect.stringContaining('CREATE TABLE IF NOT EXISTS default.__clicksuite_migrations'),
         clickhouse_settings: { wait_end_of_query: 1 }
       });
 
@@ -92,7 +102,13 @@ describe('Db', () => {
     });
 
     it('should create migrations table with cluster', async () => {
-      const clusterContext = { ...context, cluster: 'test_cluster' };
+      const clusterContext: Context = {
+        url: 'http://default@localhost:8123/test_db',
+        database: 'test_db',
+        cluster: 'test_cluster',
+        migrationsDir: '/tmp/migrations',
+        environment: 'test'
+      };
       const clusterDb = new Db(clusterContext);
       mockClient.command.mockResolvedValue(undefined);
 
@@ -101,6 +117,7 @@ describe('Db', () => {
       const query = mockClient.command.mock.calls[0][0].query;
       expect(query).toContain('ON CLUSTER test_cluster');
       expect(query).toContain('ReplicatedReplacingMergeTree');
+      expect(query).toContain('default.__clicksuite_migrations');
     });
 
     it('should handle errors during table creation', async () => {
@@ -126,7 +143,7 @@ describe('Db', () => {
       const result = await db.getAppliedMigrations();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SELECT version, active, created_at FROM test_db.__clicksuite_migrations WHERE active = 1 ORDER BY version ASC',
+        query: 'SELECT version, active, created_at FROM default.__clicksuite_migrations WHERE active = 1 ORDER BY version ASC',
         format: 'JSONEachRow'
       });
       expect(result).toEqual(mockMigrations);
@@ -156,7 +173,7 @@ describe('Db', () => {
       const result = await db.getAllMigrationRecords();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SELECT version, active, created_at FROM test_db.__clicksuite_migrations ORDER BY version ASC',
+        query: 'SELECT version, active, created_at FROM default.__clicksuite_migrations ORDER BY version ASC',
         format: 'JSONEachRow'
       });
       expect(result).toEqual(mockRecords);
@@ -212,7 +229,7 @@ describe('Db', () => {
       await db.markMigrationApplied(version);
 
       expect(mockClient.insert).toHaveBeenCalledWith({
-        table: 'test_db.__clicksuite_migrations',
+        table: 'default.__clicksuite_migrations',
         values: [{
           version,
           active: 1,
@@ -242,7 +259,7 @@ describe('Db', () => {
       await db.markMigrationRolledBack(version);
 
       expect(mockClient.insert).toHaveBeenCalledWith({
-        table: 'test_db.__clicksuite_migrations',
+        table: 'default.__clicksuite_migrations',
         values: [{
           version,
           active: 0,
@@ -318,13 +335,19 @@ describe('Db', () => {
       await db.clearMigrationsTable();
 
       expect(mockClient.command).toHaveBeenCalledWith({
-        query: 'TRUNCATE TABLE IF EXISTS test_db.__clicksuite_migrations ',
+        query: 'TRUNCATE TABLE IF EXISTS default.__clicksuite_migrations ',
         clickhouse_settings: { wait_end_of_query: 1 }
       });
     });
 
     it('should clear migrations table with cluster', async () => {
-      const clusterContext = { ...context, cluster: 'test_cluster' };
+      const clusterContext: Context = {
+        url: 'http://default@localhost:8123/test_db',
+        database: 'test_db',
+        cluster: 'test_cluster',
+        migrationsDir: '/tmp/migrations',
+        environment: 'test'
+      };
       const clusterDb = new Db(clusterContext);
       mockClient.command.mockResolvedValue(undefined);
 
@@ -332,6 +355,7 @@ describe('Db', () => {
 
       const query = mockClient.command.mock.calls[0][0].query;
       expect(query).toContain('ON CLUSTER test_cluster');
+      expect(query).toContain('default.__clicksuite_migrations');
     });
 
     it('should handle clear errors', async () => {
@@ -359,7 +383,7 @@ describe('Db', () => {
       await db.optimizeMigrationTable();
 
       expect(mockClient.command).toHaveBeenCalledWith({
-        query: 'OPTIMIZE TABLE test_db.__clicksuite_migrations FINAL',
+        query: 'OPTIMIZE TABLE default.__clicksuite_migrations FINAL',
         clickhouse_settings: { wait_end_of_query: 1 }
       });
     });

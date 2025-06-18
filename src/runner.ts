@@ -8,12 +8,19 @@ import inquirer from 'inquirer';
 
 const MIGRATION_FILE_REGEX = /^(\d{14})_([\w-]+)\.yml$/;
 
-// Helper function to format SQL with table name
-function formatSQL(sql?: string, tableName?: string): string | undefined {
-  if (!sql || !tableName) {
+// Helper function to format SQL with table and database names
+function formatSQL(sql?: string, tableName?: string, databaseName?: string): string | undefined {
+  if (!sql) {
     return sql;
   }
-  return sql.replace(/\{table\}/g, tableName);
+  let formatted = sql;
+  if (tableName) {
+    formatted = formatted.replace(/\{table\}/g, tableName);
+  }
+  if (databaseName) {
+    formatted = formatted.replace(/\{database\}/g, databaseName);
+  }
+  return formatted;
 }
 
 export class Runner {
@@ -56,16 +63,18 @@ export class Runner {
             let upSQL = currentEnvConfig.up || defaultEnvConfig.up;
             let downSQL = currentEnvConfig.down || defaultEnvConfig.down;
 
-            // Format SQL with table name if provided
+            // Format SQL with table and database names if provided
             const tableName = rawContent.table;
-            upSQL = formatSQL(upSQL, tableName);
-            downSQL = formatSQL(downSQL, tableName);
+            const databaseName = rawContent.database;
+            upSQL = formatSQL(upSQL, tableName, databaseName);
+            downSQL = formatSQL(downSQL, tableName, databaseName);
             
             migrationFiles.push({
               version,
               name,
               filePath,
               table: tableName,
+              database: databaseName,
               upSQL: upSQL,
               downSQL: downSQL,
               querySettings: querySettings,
@@ -124,14 +133,15 @@ export class Runner {
       version: timestamp,
       name: migrationNameInput, // Keep original name for display purposes inside YAML
       table: "your_table_name", // Placeholder for the user
+      database: "your_database_name", // Placeholder for the user
 
       development: {
         // YAML anchor. Note: js-yaml stringifies with quotes, which is fine.
         // For true anchors in output, manual string construction or more complex YAML lib might be needed.
         // However, for parsing, js-yaml handles `<<: *anchor` correctly if typed manually by user.
         // The goal here is a good starting template.
-        up: "CREATE TABLE {table}",
-        down: "DROP TABLE IF EXISTS {table}",
+        up: "CREATE TABLE {database}.{table}",
+        down: "DROP TABLE IF EXISTS {database}.{table}",
         settings: {},
       },
       test: {
@@ -153,6 +163,7 @@ export class Runner {
     const yamlString = `version: "${migrationContent.version}"
 name: "${migrationContent.name}"
 table: "${migrationContent.table}"
+database: "${migrationContent.database}"
 
 development: &development_defaults
   up: |
@@ -228,7 +239,7 @@ production:
       return;
     }
 
-    console.log(chalk.bold(`\nMigration Status (Env: ${this.context.environment}, DB: ${this.context.database} on ${this.context.host}):`));
+    console.log(chalk.bold(`\nMigration Status (Env: ${this.context.environment}, DB: ${this.context.database}):`));
     console.log(chalk.gray('-------------------------------------------------------------------------------------'));
     statusList.forEach(s => {
       let stateChalk = chalk.yellow;
@@ -292,8 +303,11 @@ production:
         console.log(chalk.gray('--- UP SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
         console.log(chalk.gray(migration.upSQL.trim()));
         console.log(chalk.gray('--------------'));
-        if (migration.table) {
-            console.log(chalk.dim(`(Using table: ${migration.table})`));
+        if (migration.table || migration.database) {
+            const details = [];
+            if (migration.database) details.push(`database: ${migration.database}`);
+            if (migration.table) details.push(`table: ${migration.table}`);
+            console.log(chalk.dim(`(Using ${details.join(', ')})`));
         }
         await this.db.executeMigration(migration.upSQL, migration.querySettings);
         await this.db.markMigrationApplied(migration.version);
@@ -320,7 +334,7 @@ production:
       return;
     }
 
-    let migrationsToEffectivelyRollback: { version: string, name: string, downSQL?: string, querySettings?: Record<string,any>, table?: string }[] = [];
+    let migrationsToEffectivelyRollback: { version: string, name: string, downSQL?: string, querySettings?: Record<string,any>, table?: string, database?: string }[] = [];
 
     if (!targetVersionToBecomeLatest) {
       // Case 1: No target version specified - roll back the single last applied migration
@@ -402,8 +416,11 @@ production:
         console.log(chalk.gray('--- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
         console.log(chalk.gray(migration.downSQL.trim()));
         console.log(chalk.gray('----------------'));
-        if (migration.table) {
-          console.log(chalk.dim(`(Using table: ${migration.table})`));
+        if (migration.table || migration.database) {
+          const details = [];
+          if (migration.database) details.push(`database: ${migration.database}`);
+          if (migration.table) details.push(`table: ${migration.table}`);
+          console.log(chalk.dim(`(Using ${details.join(', ')})`));
         }
         await this.db.executeMigration(migration.downSQL, migration.querySettings);
         await this.db.markMigrationRolledBack(migration.version);
@@ -458,8 +475,11 @@ production:
           console.log(chalk.gray('  --- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
           console.log(chalk.gray(`  ${localFile.downSQL.trim().split('\n').join('\n  ')}`));
           console.log(chalk.gray('  ----------------'));
-           if (localFile.table) {
-            console.log(chalk.dim(`  (Using table: ${localFile.table})`));
+           if (localFile.table || localFile.database) {
+            const details = [];
+            if (localFile.database) details.push(`database: ${localFile.database}`);
+            if (localFile.table) details.push(`table: ${localFile.table}`);
+            console.log(chalk.dim(`  (Using ${details.join(', ')})`));
           }
           await this.db.executeMigration(localFile.downSQL, localFile.querySettings);
         } catch (error: any) {

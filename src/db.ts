@@ -8,10 +8,7 @@ export class Db {
 
   constructor(context: Context) {
     this.client = createClient({
-      url: `${context.protocol}://${context.host}:${context.port}`,
-      username: context.username,
-      password: context.password,
-      database: context.database,
+      url: context.url,
     });
 
     this.context = context;
@@ -27,7 +24,7 @@ export class Db {
       const tableEngine = this.context.cluster ? `ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/__clicksuite_migrations', '{replica}')` : 'ReplacingMergeTree()';
       
       const query = `
-          CREATE TABLE IF NOT EXISTS ${this.context.database}.__clicksuite_migrations ${clusterClause} (
+          CREATE TABLE IF NOT EXISTS default.__clicksuite_migrations ${clusterClause} (
             version LowCardinality(String),
             active UInt8 NOT NULL DEFAULT 1,
             created_at DateTime64(6, 'UTC') NOT NULL DEFAULT now64()
@@ -43,7 +40,7 @@ export class Db {
           wait_end_of_query: 1,
         },
       });
-      console.log(chalk.green('Successfully ensured __clicksuite_migrations table exists.'));
+      console.log(chalk.green('Successfully ensured __clicksuite_migrations table exists in default database.'));
     } catch (error) {
       console.error(chalk.bold.red('⚠️ Failed to create __clicksuite_migrations table:'), error);
       throw error;
@@ -53,7 +50,7 @@ export class Db {
   async getAppliedMigrations(): Promise<Array<{ version: string, active: number, created_at: string }>> {
     try {
       const resultSet = await this.client.query({
-        query: `SELECT version, active, created_at FROM ${this.context.database}.__clicksuite_migrations WHERE active = 1 ORDER BY version ASC`,
+        query: `SELECT version, active, created_at FROM default.__clicksuite_migrations WHERE active = 1 ORDER BY version ASC`,
         format: 'JSONEachRow',
       });
       const migrations = await resultSet.json() as Array<{ version: string, active: number, created_at: string }>;
@@ -67,7 +64,7 @@ export class Db {
   async getAllMigrationRecords(): Promise<Array<{ version: string, active: number, created_at: string }>> {
     try {
       const resultSet = await this.client.query({
-        query: `SELECT version, active, created_at FROM ${this.context.database}.__clicksuite_migrations ORDER BY version ASC`,
+        query: `SELECT version, active, created_at FROM default.__clicksuite_migrations ORDER BY version ASC`,
         format: 'JSONEachRow',
       });
       const migrations = await resultSet.json() as Array<{ version: string, active: number, created_at: string }>;
@@ -98,7 +95,7 @@ export class Db {
     try {
       console.log(chalk.gray('Marking migration applied with version:'), chalk.gray(version));
       await this.client.insert({
-        table: `${this.context.database}.__clicksuite_migrations`,
+        table: `default.__clicksuite_migrations`,
         values: [{ version, active: 1, created_at: new Date().toISOString() }],
         format: 'JSONEachRow',
         clickhouse_settings: {
@@ -117,7 +114,7 @@ export class Db {
     try {
       console.log(chalk.gray('Marking migration rolled back for version:'), chalk.gray(version));
       await this.client.insert({
-        table: `${this.context.database}.__clicksuite_migrations`,
+        table: `default.__clicksuite_migrations`,
         values: [{ version, active: 0, created_at: new Date().toISOString() }],
         format: 'JSONEachRow',
         clickhouse_settings: {
@@ -218,7 +215,7 @@ export class Db {
   async optimizeMigrationTable() {
     try {
       await this.client.command({
-        query: `OPTIMIZE TABLE ${this.context.database}.__clicksuite_migrations FINAL`,
+        query: `OPTIMIZE TABLE default.__clicksuite_migrations FINAL`,
         clickhouse_settings: {
           wait_end_of_query: 1,
         },
@@ -236,7 +233,7 @@ export class Db {
   async clearMigrationsTable() {
     try {
       const clusterClause = this.context.cluster ? `ON CLUSTER ${this.context.cluster}` : '';
-      const query = `TRUNCATE TABLE IF EXISTS ${this.context.database}.__clicksuite_migrations ${clusterClause}`;
+      const query = `TRUNCATE TABLE IF EXISTS default.__clicksuite_migrations ${clusterClause}`;
       console.log(chalk.gray('Clearing migrations table:'), chalk.gray(query));
       await this.client.command({
         query: query,

@@ -53,11 +53,18 @@ describe('Utility Functions', () => {
   });
 
   describe('formatSQL Function', () => {
-    const formatSQL = (sql?: string, tableName?: string): string | undefined => {
-      if (!sql || !tableName) {
+    const formatSQL = (sql?: string, tableName?: string, databaseName?: string): string | undefined => {
+      if (!sql) {
         return sql;
       }
-      return sql.replace(/\{table\}/g, tableName);
+      let formatted = sql;
+      if (tableName) {
+        formatted = formatted.replace(/\{table\}/g, tableName);
+      }
+      if (databaseName) {
+        formatted = formatted.replace(/\{database\}/g, databaseName);
+      }
+      return formatted;
     };
 
     it('should replace table placeholders', () => {
@@ -69,17 +76,37 @@ describe('Utility Functions', () => {
       expect(result).toBe('CREATE TABLE users (id UInt64) ENGINE = MergeTree()');
     });
 
-    it('should replace multiple table placeholders', () => {
-      const sql = 'CREATE TABLE {table} AS SELECT * FROM {table}_backup';
-      const tableName = 'users';
+    it('should replace database placeholders', () => {
+      const sql = 'CREATE DATABASE IF NOT EXISTS {database}';
+      const databaseName = 'analytics_db';
 
-      const result = formatSQL(sql, tableName);
+      const result = formatSQL(sql, undefined, databaseName);
 
-      expect(result).toBe('CREATE TABLE users AS SELECT * FROM users_backup');
+      expect(result).toBe('CREATE DATABASE IF NOT EXISTS analytics_db');
     });
 
-    it('should return original SQL when no table name provided', () => {
-      const sql = 'CREATE TABLE {table}';
+    it('should replace both table and database placeholders', () => {
+      const sql = 'CREATE TABLE {database}.{table} (id UInt64) ENGINE = MergeTree()';
+      const tableName = 'users';
+      const databaseName = 'analytics_db';
+
+      const result = formatSQL(sql, tableName, databaseName);
+
+      expect(result).toBe('CREATE TABLE analytics_db.users (id UInt64) ENGINE = MergeTree()');
+    });
+
+    it('should replace multiple occurrences of both placeholders', () => {
+      const sql = 'CREATE TABLE {database}.{table} AS SELECT * FROM {database}.{table}_backup';
+      const tableName = 'users';
+      const databaseName = 'analytics_db';
+
+      const result = formatSQL(sql, tableName, databaseName);
+
+      expect(result).toBe('CREATE TABLE analytics_db.users AS SELECT * FROM analytics_db.users_backup');
+    });
+
+    it('should return original SQL when no replacements provided', () => {
+      const sql = 'CREATE TABLE {database}.{table}';
 
       const result = formatSQL(sql);
 
@@ -87,26 +114,36 @@ describe('Utility Functions', () => {
     });
 
     it('should return undefined when SQL is undefined', () => {
-      const result = formatSQL(undefined, 'users');
+      const result = formatSQL(undefined, 'users', 'db');
 
       expect(result).toBeUndefined();
     });
 
-    it('should handle empty table name', () => {
-      const sql = 'CREATE TABLE {table}';
-
-      const result = formatSQL(sql, '');
-
-      expect(result).toBe(sql);
-    });
-
-    it('should handle SQL without placeholders', () => {
-      const sql = 'CREATE TABLE users (id UInt64)';
-      const tableName = 'products';
+    it('should handle partial replacements', () => {
+      const sql = 'CREATE TABLE {database}.{table}';
+      const tableName = 'users';
 
       const result = formatSQL(sql, tableName);
 
-      expect(result).toBe('CREATE TABLE users (id UInt64)');
+      expect(result).toBe('CREATE TABLE {database}.users');
+    });
+
+    it('should handle SQL without placeholders', () => {
+      const sql = 'CREATE TABLE analytics_db.users (id UInt64)';
+      const tableName = 'products';
+      const databaseName = 'other_db';
+
+      const result = formatSQL(sql, tableName, databaseName);
+
+      expect(result).toBe('CREATE TABLE analytics_db.users (id UInt64)');
+    });
+
+    it('should not replace placeholders with empty strings', () => {
+      const sql = 'CREATE TABLE {database}.{table}';
+
+      const result = formatSQL(sql, '', '');
+
+      expect(result).toBe('CREATE TABLE {database}.{table}');
     });
   });
 
