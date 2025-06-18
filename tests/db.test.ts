@@ -313,7 +313,7 @@ describe('Db', () => {
       const result = await db.getDatabaseTables();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SHOW TABLES FROM test_db',
+        query: "SELECT name FROM system.tables WHERE database = 'test_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'",
         format: 'JSONEachRow'
       });
       expect(result).toEqual(mockTables);
