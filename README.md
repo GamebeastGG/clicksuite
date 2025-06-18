@@ -20,6 +20,7 @@ Clicksuite helps you manage your ClickHouse schema changes in a structured and e
 *   Completely reset the database by rolling back all migrations and clearing the tracking table.
 *   Load an existing schema state by marking all local migrations as applied without running them.
 *   **Auto-generated schema.sql file** that updates after each migration with complete database schema.
+*   **Multiple query support** - execute multiple SQL statements in a single migration by separating them with semicolons.
 *   Configuration via `.env` file.
 *   **Full TypeScript support** with exported types for programmatic usage.
 
@@ -240,6 +241,65 @@ production:
 *   **Database Creation**: You can create databases in your migrations using `CREATE DATABASE IF NOT EXISTS {database}` - this will be tracked in the generated `schema.sql`.
 *   Each environment (`development`, `test`, `production`) can define its own `up` SQL, `down` SQL, and `settings` (ClickHouse settings to apply during execution).
 *   YAML anchors (`&anchor_name`) and aliases (`<<: *anchor_name`) can be used to reduce redundancy (e.g., `test` and `production` can inherit from `development_defaults`). `js-yaml` (used internally) resolves these aliases upon loading.
+
+### Multiple Query Support
+
+Clicksuite supports executing multiple SQL statements in a single migration by separating them with semicolons. This is particularly useful since ClickHouse doesn't natively support multiple queries in a single request.
+
+**Example migration with multiple queries:**
+
+```yaml
+version: "20240115103000"
+name: "create users and orders tables"
+table: "users"
+database: "ecommerce"
+
+development:
+  up: |
+    -- Create the database
+    CREATE DATABASE IF NOT EXISTS {database};
+    
+    -- Create users table
+    CREATE TABLE {database}.users (
+      id UInt32,
+      email String,
+      created_at DateTime64
+    ) ENGINE = MergeTree() ORDER BY id;
+    
+    -- Create orders table
+    CREATE TABLE {database}.orders (
+      id UInt32,
+      user_id UInt32,
+      amount Decimal(10,2),
+      created_at DateTime64
+    ) ENGINE = MergeTree() ORDER BY id;
+    
+    -- Insert initial admin user
+    INSERT INTO {database}.users VALUES (1, 'admin@example.com', now64());
+  down: |
+    -- Drop tables in reverse order
+    DROP TABLE IF EXISTS {database}.orders;
+    DROP TABLE IF EXISTS {database}.users;
+    DROP DATABASE IF EXISTS {database};
+```
+
+**Key features of multiple query support:**
+
+- **Automatic splitting**: Queries are automatically split by semicolons and executed individually
+- **Error handling**: If any query fails, the entire migration fails and subsequent queries are not executed
+- **Logging**: Each query is logged separately with progress indicators (e.g., "Query 1/3", "Query 2/3")
+- **Settings preservation**: All ClickHouse settings specified in the migration are applied to each individual query
+- **Trailing semicolons**: Trailing semicolons are safely ignored and won't cause empty query errors
+- **Works for both directions**: Multiple queries work for both `up` and `down` migrations
+
+**Console output example:**
+```
+Executing 4 migration queries:
+  Query 1/4: CREATE DATABASE IF NOT EXISTS ecommerce
+  Query 2/4: CREATE TABLE ecommerce.users (id UInt32, email String, created_at DateTime64) ENGINE = MergeTree() ORDER BY id
+  Query 3/4: CREATE TABLE ecommerce.orders (id UInt32, user_id UInt32, amount Decimal(10,2), created_at DateTime64) ENGINE = MergeTree() ORDER BY id
+  Query 4/4: INSERT INTO ecommerce.users VALUES (1, 'admin@example.com', now64())
+```
 
 ## Testing
 
