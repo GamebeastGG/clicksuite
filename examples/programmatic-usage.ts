@@ -3,16 +3,17 @@ import { Runner, Db, Context, MigrationFile, MigrationStatus } from 'clicksuite'
 
 // Create a context for your ClickHouse configuration
 const context: Context = {
-  protocol: 'http',
-  host: 'localhost',
-  port: '8123',
-  username: 'default',
-  password: '',
-  database: 'my_database',
+  url: 'http://default@localhost:8123/my_database',
+  database: 'my_database', // Extracted from URL for convenience
   migrationsDir: '/path/to/migrations',
   environment: 'development',
   nonInteractive: false
 };
+
+// Alternative: Use the getContext helper function with environment variables
+// Make sure to set CLICKHOUSE_URL environment variable:
+// process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/my_database';
+// const context = getContext({});
 
 async function runMigrations() {
   // Create a runner instance

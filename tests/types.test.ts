@@ -2,19 +2,15 @@ import { Context, MigrationFile, MigrationRecord, MigrationStatus, RawMigrationF
 
 describe('Types', () => {
   describe('Context', () => {
-    it('should have required properties', () => {
+    it('should have required properties with URL configuration', () => {
       const context: Context = {
-        protocol: 'http',
-        host: 'localhost',
-        port: '8123',
+        url: 'http://default@localhost:8123/test_db',
         database: 'test_db',
         migrationsDir: '/path/to/migrations',
         environment: 'test'
       };
 
-      expect(context.protocol).toBe('http');
-      expect(context.host).toBe('localhost');
-      expect(context.port).toBe('8123');
+      expect(context.url).toBe('http://default@localhost:8123/test_db');
       expect(context.database).toBe('test_db');
       expect(context.migrationsDir).toBe('/path/to/migrations');
       expect(context.environment).toBe('test');
@@ -22,11 +18,7 @@ describe('Types', () => {
 
     it('should support optional properties', () => {
       const context: Context = {
-        protocol: 'https',
-        host: 'clickhouse.example.com',
-        port: '8443',
-        username: 'testuser',
-        password: 'testpass',
+        url: 'https://testuser:testpass@clickhouse.example.com:8443/prod_db',
         database: 'prod_db',
         cluster: 'test_cluster',
         migrationsDir: '/migrations',
@@ -34,10 +26,21 @@ describe('Types', () => {
         environment: 'production'
       };
 
-      expect(context.username).toBe('testuser');
-      expect(context.password).toBe('testpass');
+      expect(context.url).toBe('https://testuser:testpass@clickhouse.example.com:8443/prod_db');
       expect(context.cluster).toBe('test_cluster');
       expect(context.nonInteractive).toBe(true);
+    });
+
+    it('should handle minimal URL configuration', () => {
+      const context: Context = {
+        url: 'http://localhost:8123/default',
+        database: 'default',
+        migrationsDir: '/migrations',
+        environment: 'development'
+      };
+
+      expect(context.url).toBe('http://localhost:8123/default');
+      expect(context.database).toBe('default');
     });
   });
 
@@ -48,17 +51,35 @@ describe('Types', () => {
         name: 'create_users_table',
         filePath: '/migrations/20240101120000_create_users_table.yml',
         table: 'users',
-        upSQL: 'CREATE TABLE users (id UInt64, name String) ENGINE = MergeTree() ORDER BY id',
-        downSQL: 'DROP TABLE IF EXISTS users',
+        database: 'analytics_db',
+        upSQL: 'CREATE TABLE analytics_db.users (id UInt64, name String) ENGINE = MergeTree() ORDER BY id',
+        downSQL: 'DROP TABLE IF EXISTS analytics_db.users',
         querySettings: { max_execution_time: 60 }
       };
 
       expect(migration.version).toBe('20240101120000');
       expect(migration.name).toBe('create_users_table');
       expect(migration.filePath).toContain('.yml');
+      expect(migration.table).toBe('users');
+      expect(migration.database).toBe('analytics_db');
       expect(migration.upSQL).toContain('CREATE TABLE');
+      expect(migration.upSQL).toContain('analytics_db.users');
       expect(migration.downSQL).toContain('DROP TABLE');
       expect(migration.querySettings).toHaveProperty('max_execution_time');
+    });
+
+    it('should support migrations without database field', () => {
+      const migration: MigrationFile = {
+        version: '20240101120000',
+        name: 'create_users_table',
+        filePath: '/migrations/20240101120000_create_users_table.yml',
+        upSQL: 'CREATE TABLE users (id UInt64) ENGINE = MergeTree() ORDER BY id',
+        downSQL: 'DROP TABLE IF EXISTS users'
+      };
+
+      expect(migration.database).toBeUndefined();
+      expect(migration.table).toBeUndefined();
+      expect(migration.upSQL).toContain('CREATE TABLE users');
     });
   });
 
@@ -106,25 +127,46 @@ describe('Types', () => {
   });
 
   describe('RawMigrationFileContent', () => {
-    it('should support environment-specific configurations', () => {
+    it('should support environment-specific configurations with database field', () => {
       const rawContent: RawMigrationFileContent = {
         version: '20240101120000',
         name: 'test_migration',
         table: 'test_table',
+        database: 'analytics_db',
         development: {
-          up: 'CREATE TABLE test_table',
-          down: 'DROP TABLE test_table'
+          up: 'CREATE DATABASE IF NOT EXISTS {database}; CREATE TABLE {database}.{table}',
+          down: 'DROP TABLE {database}.{table}'
         },
         production: {
-          up: 'CREATE TABLE test_table ON CLUSTER prod',
-          down: 'DROP TABLE test_table ON CLUSTER prod'
+          up: 'CREATE DATABASE IF NOT EXISTS {database} ON CLUSTER prod; CREATE TABLE {database}.{table} ON CLUSTER prod',
+          down: 'DROP TABLE {database}.{table} ON CLUSTER prod'
         }
       };
 
       expect(rawContent.version).toBe('20240101120000');
+      expect(rawContent.table).toBe('test_table');
+      expect(rawContent.database).toBe('analytics_db');
       expect(rawContent.development).toHaveProperty('up');
       expect(rawContent.production).toHaveProperty('up');
       expect(rawContent.production.up).toContain('ON CLUSTER');
+      expect(rawContent.development.up).toContain('{database}');
+      expect(rawContent.development.up).toContain('{table}');
+    });
+
+    it('should support legacy configurations without database field', () => {
+      const rawContent: RawMigrationFileContent = {
+        version: '20240101120000',
+        name: 'legacy_migration',
+        table: 'users',
+        development: {
+          up: 'CREATE TABLE {table}',
+          down: 'DROP TABLE {table}'
+        }
+      };
+
+      expect(rawContent.database).toBeUndefined();
+      expect(rawContent.table).toBe('users');
+      expect(rawContent.development.up).toContain('{table}');
     });
   });
 });

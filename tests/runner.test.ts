@@ -22,11 +22,7 @@ describe('Runner', () => {
 
   beforeEach(() => {
     context = {
-      protocol: 'http',
-      host: 'localhost',
-      port: '8123',
-      username: 'default',
-      password: '',
+      url: 'http://default@localhost:8123/test_db',
       database: 'test_db',
       migrationsDir: '/tmp/migrations',
       environment: 'test',

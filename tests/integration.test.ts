@@ -14,11 +14,7 @@ describe('Integration Tests', () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'clicksuite-test-'));
     
     context = {
-      protocol: 'http',
-      host: 'localhost',
-      port: '8123',
-      username: 'default',
-      password: '',
+      url: 'http://default@localhost:8123/test_db',
       database: 'test_db',
       migrationsDir: path.join(tempDir, 'migrations'),
       environment: 'test',
