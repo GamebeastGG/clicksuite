@@ -524,53 +524,82 @@ production:
     const schemaPath = path.join(this.context.migrationsDir, 'schema.sql');
     
     try {
-      const tables = await this.db.getDatabaseTables();
-      const materializedViews = await this.db.getDatabaseMaterializedViews();
-      const dictionaries = await this.db.getDatabaseDictionaries();
+      // Get all databases that have been targeted by migrations
+      const localMigrations = await this._getLocalMigrations();
+      const targetDatabases = new Set<string>();
+      
+      // Add context database (from CLICKHOUSE_URL)
+      targetDatabases.add(this.context.database);
+      
+      // Add databases from migration files
+      localMigrations.forEach(migration => {
+        if (migration.database) {
+          targetDatabases.add(migration.database);
+        }
+      });
+      
+      console.log(chalk.dim(`Updating schema file for databases: ${Array.from(targetDatabases).join(', ')}`));
+      
+      let allTables: Array<{name: string, database: string}> = [];
+      let allViews: Array<{name: string, database: string}> = [];
+      let allDictionaries: Array<{name: string, database: string}> = [];
+      
+      // Query each database for its objects
+      for (const dbName of targetDatabases) {
+        const tables = await this.db.getDatabaseTablesForDb(dbName);
+        const views = await this.db.getDatabaseMaterializedViewsForDb(dbName);
+        const dictionaries = await this.db.getDatabaseDictionariesForDb(dbName);
+        
+        allTables.push(...tables.map(t => ({...t, database: dbName})));
+        allViews.push(...views.map(v => ({...v, database: dbName})));
+        allDictionaries.push(...dictionaries.map(d => ({...d, database: dbName})));
+      }
+      
+      console.log(chalk.dim(`Found ${allTables.length} tables, ${allViews.length} views, ${allDictionaries.length} dictionaries across all databases`));
       
       let schemaContent = `-- Auto-generated schema file
 -- This file contains table definitions, materialized view definitions, and dictionary definitions
 -- Generated on: ${new Date().toISOString()}
 -- Environment: ${this.context.environment}
--- Database: ${this.context.database}
+-- Databases: ${Array.from(targetDatabases).join(', ')}
 
 `;
 
       // Get table definitions
-      if (tables.length > 0) {
+      if (allTables.length > 0) {
         schemaContent += '-- Tables\n';
-        for (const table of tables) {
+        for (const table of allTables) {
           try {
-            const createStatement = await this.db.getCreateTableQuery(table.name, 'TABLE');
-            schemaContent += `\n-- Table: ${table.name}\n`;
+            const createStatement = await this.db.getCreateTableQueryForDb(table.name, table.database, 'TABLE');
+            schemaContent += `\n-- Table: ${table.database}.${table.name}\n`;
             schemaContent += createStatement + ';\n';
           } catch (e) {
-            console.warn(chalk.yellow(`Warning: Could not get CREATE statement for table ${table.name}`));
+            console.warn(chalk.yellow(`Warning: Could not get CREATE statement for table ${table.database}.${table.name}`));
           }
         }
       }
 
       // Get materialized view definitions
-      if (materializedViews.length > 0) {
+      if (allViews.length > 0) {
         schemaContent += '\n-- Materialized Views\n';
-        for (const view of materializedViews) {
+        for (const view of allViews) {
           try {
-            const createStatement = await this.db.getCreateTableQuery(view.name, 'VIEW');
-            schemaContent += `\n-- Materialized View: ${view.name}\n`;
+            const createStatement = await this.db.getCreateTableQueryForDb(view.name, view.database, 'VIEW');
+            schemaContent += `\n-- Materialized View: ${view.database}.${view.name}\n`;
             schemaContent += createStatement + ';\n';
           } catch (e) {
-            console.warn(chalk.yellow(`Warning: Could not get CREATE statement for materialized view ${view.name}`));
+            console.warn(chalk.yellow(`Warning: Could not get CREATE statement for materialized view ${view.database}.${view.name}`));
           }
         }
       }
 
       // Get dictionary definitions
-      if (dictionaries.length > 0) {
+      if (allDictionaries.length > 0) {
         schemaContent += '\n-- Dictionaries\n';
-        for (const dict of dictionaries) {
+        for (const dict of allDictionaries) {
           try {
-            const createStatement = await this.db.getCreateTableQuery(dict.name, 'DICTIONARY');
-            schemaContent += `\n-- Dictionary: ${dict.name}\n`;
+            const createStatement = await this.db.getCreateTableQueryForDb(dict.name, dict.database, 'DICTIONARY');
+            schemaContent += `\n-- Dictionary: ${dict.database}.${dict.name}\n`;
             schemaContent += createStatement + ';\n';
           } catch (e) {
             console.warn(chalk.yellow(`Warning: Could not get CREATE statement for dictionary ${dict.name}`));

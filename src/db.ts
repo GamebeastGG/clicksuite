@@ -228,6 +228,45 @@ export class Db {
       return [];
     }
   }
+
+  async getDatabaseTablesForDb(database: string): Promise<{name: string}[]> {
+    try {
+      const resultSet = await this.client.query({
+        query: `SELECT name FROM system.tables WHERE database = '${database}' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'`,
+        format: 'JSONEachRow'
+      });
+      return await resultSet.json() as {name: string}[];
+    } catch (error) {
+      console.error(chalk.bold.red(`⚠️ Failed to get tables for database ${database}:`), error);
+      return [];
+    }
+  }
+
+  async getDatabaseMaterializedViewsForDb(database: string): Promise<{name: string}[]> {
+    try {
+      const resultSet = await this.client.query({
+        query: `SELECT name FROM system.tables WHERE database = '${database}' AND engine = 'MaterializedView'`,
+        format: 'JSONEachRow'
+      });
+      return await resultSet.json() as {name: string}[];
+    } catch (error) {
+      console.error(chalk.bold.red(`⚠️ Failed to get materialized views for database ${database}:`), error);
+      return [];
+    }
+  }
+
+  async getDatabaseDictionariesForDb(database: string): Promise<{name: string}[]> {
+    try {
+      const resultSet = await this.client.query({
+        query: `SELECT name FROM system.dictionaries WHERE database = '${database}'`,
+        format: 'JSONEachRow'
+      });
+      return await resultSet.json() as {name: string}[];
+    } catch (error) {
+      console.error(chalk.bold.red(`⚠️ Failed to get dictionaries for database ${database}:`), error);
+      return [];
+    }
+  }
   
   async getCreateTableQuery(name: string, type: 'TABLE' | 'VIEW' | 'DICTIONARY'): Promise<string> {
     try {
@@ -238,6 +277,19 @@ export class Db {
       return resultText.trim();
     } catch (error) {
       console.error(chalk.bold.red(`⚠️ Failed to get create query for ${type} ${name}:`), error);
+      throw error;
+    }
+  }
+
+  async getCreateTableQueryForDb(name: string, database: string, type: 'TABLE' | 'VIEW' | 'DICTIONARY'): Promise<string> {
+    try {
+      const objectType = type === 'VIEW' ? 'MATERIALIZED VIEW' : type;
+      const showQuery = `SHOW CREATE ${objectType} ${database}.${name}`;
+      const resultSet = await this.client.query({ query: showQuery, format: 'TabSeparated' });
+      const resultText = await resultSet.text();
+      return resultText.trim();
+    } catch (error) {
+      console.error(chalk.bold.red(`⚠️ Failed to get create query for ${type} ${database}.${name}:`), error);
       throw error;
     }
   }

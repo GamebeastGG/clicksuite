@@ -41,7 +41,11 @@ describe('Runner', () => {
       getDatabaseTables: jest.fn(),
       getDatabaseMaterializedViews: jest.fn(),
       getDatabaseDictionaries: jest.fn(),
+      getDatabaseTablesForDb: jest.fn(),
+      getDatabaseMaterializedViewsForDb: jest.fn(),
+      getDatabaseDictionariesForDb: jest.fn(),
       getCreateTableQuery: jest.fn(),
+      getCreateTableQueryForDb: jest.fn(),
       getDatabaseSchema: jest.fn(),
       clearMigrationsTable: jest.fn(),
       optimizeMigrationTable: jest.fn(),
@@ -646,24 +650,33 @@ describe('Runner', () => {
       const mockViews = [{ name: 'user_stats_mv' }];
       const mockDictionaries = [{ name: 'countries_dict' }];
 
-      mockDb.getDatabaseTables.mockResolvedValue(mockTables);
-      mockDb.getDatabaseMaterializedViews.mockResolvedValue(mockViews);
-      mockDb.getDatabaseDictionaries.mockResolvedValue(mockDictionaries);
-      mockDb.getCreateTableQuery
-        .mockResolvedValueOnce('CREATE TABLE users (id UInt32) ENGINE = MergeTree() ORDER BY id')
-        .mockResolvedValueOnce('CREATE TABLE orders (id UInt32) ENGINE = MergeTree() ORDER BY id')
-        .mockResolvedValueOnce('CREATE MATERIALIZED VIEW user_stats_mv AS SELECT count() FROM users')
-        .mockResolvedValueOnce('CREATE DICTIONARY countries_dict (id UInt32, name String) PRIMARY KEY id');
+      // Mock migrations to include a migration targeting a different database
+      const mockMigrations = [
+        { version: '123', name: 'test', database: 'gamebeast', filePath: '/test', upSQL: 'CREATE TABLE test', downSQL: 'DROP TABLE test' }
+      ];
+      jest.spyOn(runner as any, '_getLocalMigrations').mockResolvedValue(mockMigrations);
+
+      mockDb.getDatabaseTablesForDb.mockResolvedValue(mockTables);
+      mockDb.getDatabaseMaterializedViewsForDb.mockResolvedValue(mockViews);
+      mockDb.getDatabaseDictionariesForDb.mockResolvedValue(mockDictionaries);
+      mockDb.getCreateTableQueryForDb
+        .mockResolvedValueOnce('CREATE TABLE test_db.users (id UInt32) ENGINE = MergeTree() ORDER BY id')
+        .mockResolvedValueOnce('CREATE TABLE test_db.orders (id UInt32) ENGINE = MergeTree() ORDER BY id')
+        .mockResolvedValueOnce('CREATE MATERIALIZED VIEW test_db.user_stats_mv AS SELECT count() FROM users')
+        .mockResolvedValueOnce('CREATE DICTIONARY test_db.countries_dict (id UInt32, name String) PRIMARY KEY id');
 
       await runner['_updateSchemaFile']();
 
-      expect(mockDb.getDatabaseTables).toHaveBeenCalled();
-      expect(mockDb.getDatabaseMaterializedViews).toHaveBeenCalled();
-      expect(mockDb.getDatabaseDictionaries).toHaveBeenCalled();
-      expect(mockDb.getCreateTableQuery).toHaveBeenCalledWith('users', 'TABLE');
-      expect(mockDb.getCreateTableQuery).toHaveBeenCalledWith('orders', 'TABLE');
-      expect(mockDb.getCreateTableQuery).toHaveBeenCalledWith('user_stats_mv', 'VIEW');
-      expect(mockDb.getCreateTableQuery).toHaveBeenCalledWith('countries_dict', 'DICTIONARY');
+      expect(mockDb.getDatabaseTablesForDb).toHaveBeenCalledWith('test_db');
+      expect(mockDb.getDatabaseTablesForDb).toHaveBeenCalledWith('gamebeast');
+      expect(mockDb.getDatabaseMaterializedViewsForDb).toHaveBeenCalledWith('test_db');
+      expect(mockDb.getDatabaseMaterializedViewsForDb).toHaveBeenCalledWith('gamebeast');
+      expect(mockDb.getDatabaseDictionariesForDb).toHaveBeenCalledWith('test_db');
+      expect(mockDb.getDatabaseDictionariesForDb).toHaveBeenCalledWith('gamebeast');
+      expect(mockDb.getCreateTableQueryForDb).toHaveBeenCalledWith('users', 'test_db', 'TABLE');
+      expect(mockDb.getCreateTableQueryForDb).toHaveBeenCalledWith('orders', 'test_db', 'TABLE');
+      expect(mockDb.getCreateTableQueryForDb).toHaveBeenCalledWith('user_stats_mv', 'test_db', 'VIEW');
+      expect(mockDb.getCreateTableQueryForDb).toHaveBeenCalledWith('countries_dict', 'test_db', 'DICTIONARY');
 
       const writeCall = mockFs.writeFile.mock.calls[0];
       const schemaPath = writeCall[0] as string;
@@ -672,23 +685,24 @@ describe('Runner', () => {
       expect(schemaPath).toBe(path.join('/tmp/migrations', 'schema.sql'));
       expect(schemaContent).toContain('-- Auto-generated schema file');
       expect(schemaContent).toContain('-- Environment: test');
-      expect(schemaContent).toContain('-- Database: test_db');
+      expect(schemaContent).toContain('-- Databases: test_db, gamebeast');
       expect(schemaContent).toContain('-- Tables');
-      expect(schemaContent).toContain('-- Table: users');
-      expect(schemaContent).toContain('CREATE TABLE users (id UInt32) ENGINE = MergeTree() ORDER BY id;');
-      expect(schemaContent).toContain('-- Table: orders');
+      expect(schemaContent).toContain('-- Table: test_db.users');
+      expect(schemaContent).toContain('CREATE TABLE test_db.users (id UInt32) ENGINE = MergeTree() ORDER BY id;');
+      expect(schemaContent).toContain('-- Table: test_db.orders');
       expect(schemaContent).toContain('-- Materialized Views');
-      expect(schemaContent).toContain('-- Materialized View: user_stats_mv');
-      expect(schemaContent).toContain('CREATE MATERIALIZED VIEW user_stats_mv AS SELECT count() FROM users;');
+      expect(schemaContent).toContain('-- Materialized View: test_db.user_stats_mv');
+      expect(schemaContent).toContain('CREATE MATERIALIZED VIEW test_db.user_stats_mv AS SELECT count() FROM users;');
       expect(schemaContent).toContain('-- Dictionaries');
-      expect(schemaContent).toContain('-- Dictionary: countries_dict');
-      expect(schemaContent).toContain('CREATE DICTIONARY countries_dict (id UInt32, name String) PRIMARY KEY id;');
+      expect(schemaContent).toContain('-- Dictionary: test_db.countries_dict');
+      expect(schemaContent).toContain('CREATE DICTIONARY test_db.countries_dict (id UInt32, name String) PRIMARY KEY id;');
     });
 
     it('should handle empty database', async () => {
-      mockDb.getDatabaseTables.mockResolvedValue([]);
-      mockDb.getDatabaseMaterializedViews.mockResolvedValue([]);
-      mockDb.getDatabaseDictionaries.mockResolvedValue([]);
+      jest.spyOn(runner as any, '_getLocalMigrations').mockResolvedValue([]);
+      mockDb.getDatabaseTablesForDb.mockResolvedValue([]);
+      mockDb.getDatabaseMaterializedViewsForDb.mockResolvedValue([]);
+      mockDb.getDatabaseDictionariesForDb.mockResolvedValue([]);
 
       await runner['_updateSchemaFile']();
 
@@ -702,10 +716,11 @@ describe('Runner', () => {
     });
 
     it('should handle database query errors gracefully', async () => {
-      mockDb.getDatabaseTables.mockResolvedValue([{ name: 'users' }]);
-      mockDb.getDatabaseMaterializedViews.mockResolvedValue([]);
-      mockDb.getDatabaseDictionaries.mockResolvedValue([]);
-      mockDb.getCreateTableQuery.mockRejectedValue(new Error('Permission denied'));
+      jest.spyOn(runner as any, '_getLocalMigrations').mockResolvedValue([]);
+      mockDb.getDatabaseTablesForDb.mockResolvedValue([{ name: 'users' }]);
+      mockDb.getDatabaseMaterializedViewsForDb.mockResolvedValue([]);
+      mockDb.getDatabaseDictionariesForDb.mockResolvedValue([]);
+      mockDb.getCreateTableQueryForDb.mockRejectedValue(new Error('Permission denied'));
 
       await runner['_updateSchemaFile']();
 
