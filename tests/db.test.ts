@@ -218,6 +218,116 @@ describe('Db', () => {
 
       await expect(db.executeMigration(query)).rejects.toThrow('Syntax error');
     });
+
+    it('should execute multiple queries separated by semicolons', async () => {
+      const query = 'CREATE TABLE test_table1; CREATE TABLE test_table2; INSERT INTO test_table1 VALUES (1)';
+      mockClient.command.mockResolvedValue(undefined);
+
+      await db.executeMigration(query);
+
+      expect(mockClient.command).toHaveBeenCalledTimes(3);
+      expect(mockClient.command).toHaveBeenNthCalledWith(1, {
+        query: 'CREATE TABLE test_table1',
+        clickhouse_settings: {
+          wait_end_of_query: 1
+        }
+      });
+      expect(mockClient.command).toHaveBeenNthCalledWith(2, {
+        query: 'CREATE TABLE test_table2',
+        clickhouse_settings: {
+          wait_end_of_query: 1
+        }
+      });
+      expect(mockClient.command).toHaveBeenNthCalledWith(3, {
+        query: 'INSERT INTO test_table1 VALUES (1)',
+        clickhouse_settings: {
+          wait_end_of_query: 1
+        }
+      });
+    });
+
+    it('should execute multiple queries with settings', async () => {
+      const query = 'CREATE TABLE test_table1; CREATE TABLE test_table2';
+      const settings = { max_execution_time: 60 };
+      mockClient.command.mockResolvedValue(undefined);
+
+      await db.executeMigration(query, settings);
+
+      expect(mockClient.command).toHaveBeenCalledTimes(2);
+      expect(mockClient.command).toHaveBeenNthCalledWith(1, {
+        query: 'CREATE TABLE test_table1',
+        clickhouse_settings: {
+          ...settings,
+          wait_end_of_query: 1
+        }
+      });
+      expect(mockClient.command).toHaveBeenNthCalledWith(2, {
+        query: 'CREATE TABLE test_table2',
+        clickhouse_settings: {
+          ...settings,
+          wait_end_of_query: 1
+        }
+      });
+    });
+
+    it('should handle empty queries in multiple query string', async () => {
+      const query = 'CREATE TABLE test_table1;; ; CREATE TABLE test_table2;';
+      mockClient.command.mockResolvedValue(undefined);
+
+      await db.executeMigration(query);
+
+      expect(mockClient.command).toHaveBeenCalledTimes(2);
+      expect(mockClient.command).toHaveBeenNthCalledWith(1, {
+        query: 'CREATE TABLE test_table1',
+        clickhouse_settings: {
+          wait_end_of_query: 1
+        }
+      });
+      expect(mockClient.command).toHaveBeenNthCalledWith(2, {
+        query: 'CREATE TABLE test_table2',
+        clickhouse_settings: {
+          wait_end_of_query: 1
+        }
+      });
+    });
+
+    it('should handle queries with whitespace and newlines', async () => {
+      const query = `
+        CREATE TABLE test_table1 (
+          id UInt32
+        );
+        
+        CREATE TABLE test_table2 (
+          name String
+        );
+      `;
+      mockClient.command.mockResolvedValue(undefined);
+
+      await db.executeMigration(query);
+
+      expect(mockClient.command).toHaveBeenCalledTimes(2);
+      expect(mockClient.command).toHaveBeenNthCalledWith(1, {
+        query: 'CREATE TABLE test_table1 (\n          id UInt32\n        )',
+        clickhouse_settings: {
+          wait_end_of_query: 1
+        }
+      });
+      expect(mockClient.command).toHaveBeenNthCalledWith(2, {
+        query: 'CREATE TABLE test_table2 (\n          name String\n        )',
+        clickhouse_settings: {
+          wait_end_of_query: 1
+        }
+      });
+    });
+
+    it('should do nothing when query is empty or only semicolons', async () => {
+      const query = ';;; ; ';
+      mockClient.command.mockResolvedValue(undefined);
+
+      await db.executeMigration(query);
+
+      expect(mockClient.command).not.toHaveBeenCalled();
+    });
   });
 
   describe('markMigrationApplied', () => {

@@ -75,16 +75,46 @@ export class Db {
     }
   }
 
+  private splitQueries(sql: string): string[] {
+    // Split by semicolon and filter out empty queries
+    return sql
+      .split(';')
+      .map(query => query.trim())
+      .filter(query => query.length > 0);
+  }
+
   async executeMigration(query: string, query_settings?: Record<string, any>) {
     try {
-      console.log(chalk.gray('Executing migration query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
-      await this.client.command({
-        query: query,
-        clickhouse_settings: {
-          ...query_settings,
-          wait_end_of_query: 1,
-        },
-      });
+      const queries = this.splitQueries(query);
+      
+      if (queries.length === 0) {
+        console.warn(chalk.yellow('No queries found to execute'));
+        return;
+      }
+
+      if (queries.length === 1) {
+        console.log(chalk.gray('Executing migration query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
+        await this.client.command({
+          query: query,
+          clickhouse_settings: {
+            ...query_settings,
+            wait_end_of_query: 1,
+          },
+        });
+      } else {
+        console.log(chalk.gray(`Executing ${queries.length} migration queries:`));
+        for (let i = 0; i < queries.length; i++) {
+          const individualQuery = queries[i];
+          console.log(chalk.gray(`  Query ${i + 1}/${queries.length}:`), chalk.gray(individualQuery.replace(/\n\s*/g, ' ').trim()));
+          await this.client.command({
+            query: individualQuery,
+            clickhouse_settings: {
+              ...query_settings,
+              wait_end_of_query: 1,
+            },
+          });
+        }
+      }
     } catch (error) {
       console.error(chalk.bold.red('⚠️ Failed to execute migration query:'), error);
       throw error;
