@@ -33,7 +33,9 @@ export class Db {
           PRIMARY KEY (version)
           ORDER BY (version)
         `;
-      console.log(chalk.gray('Executing initMigrationsTable query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
+      if (this.context.verbose) {
+        console.log(chalk.gray('Executing initMigrationsTable query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
+      }
       await this.client.command({
         query: query,
         clickhouse_settings: {
@@ -93,7 +95,9 @@ export class Db {
       }
 
       if (queries.length === 1) {
-        console.log(chalk.gray('Executing migration query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
+        if (this.context.verbose) {
+          console.log(chalk.gray('Executing migration query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
+        }
         await this.client.command({
           query: query,
           clickhouse_settings: {
@@ -102,10 +106,15 @@ export class Db {
           },
         });
       } else {
-        console.log(chalk.gray(`Executing ${queries.length} migration queries:`));
+        if (this.context.verbose) {
+          console.log(chalk.gray(`Executing ${queries.length} migration queries:`));
+          for (let i = 0; i < queries.length; i++) {
+            const individualQuery = queries[i];
+            console.log(chalk.gray(`  Query ${i + 1}/${queries.length}:`), chalk.gray(individualQuery.replace(/\n\s*/g, ' ').trim()));
+          }
+        }
         for (let i = 0; i < queries.length; i++) {
           const individualQuery = queries[i];
-          console.log(chalk.gray(`  Query ${i + 1}/${queries.length}:`), chalk.gray(individualQuery.replace(/\n\s*/g, ' ').trim()));
           await this.client.command({
             query: individualQuery,
             clickhouse_settings: {
@@ -123,7 +132,9 @@ export class Db {
 
   async markMigrationApplied(version: string) {
     try {
-      console.log(chalk.gray('Marking migration applied with version:'), chalk.gray(version));
+      if (this.context.verbose) {
+        console.log(chalk.gray('Marking migration applied with version:'), chalk.gray(version));
+      }
       await this.client.insert({
         table: `default.__clicksuite_migrations`,
         values: [{ version, active: 1, created_at: new Date().toISOString() }],
@@ -142,7 +153,9 @@ export class Db {
 
   async markMigrationRolledBack(version: string) {
     try {
-      console.log(chalk.gray('Marking migration rolled back for version:'), chalk.gray(version));
+      if (this.context.verbose) {
+        console.log(chalk.gray('Marking migration rolled back for version:'), chalk.gray(version));
+      }
       await this.client.insert({
         table: `default.__clicksuite_migrations`,
         values: [{ version, active: 0, created_at: new Date().toISOString() }],
@@ -316,7 +329,9 @@ export class Db {
     try {
       const clusterClause = this.context.cluster ? `ON CLUSTER ${this.context.cluster}` : '';
       const query = `TRUNCATE TABLE IF EXISTS default.__clicksuite_migrations ${clusterClause}`;
-      console.log(chalk.gray('Clearing migrations table:'), chalk.gray(query));
+      if (this.context.verbose) {
+        console.log(chalk.gray('Clearing migrations table:'), chalk.gray(query));
+      }
       await this.client.command({
         query: query,
         clickhouse_settings: {

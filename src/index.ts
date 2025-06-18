@@ -53,6 +53,7 @@ export function getContext(argv: { [key: string]: any }): Context {
     nonInteractive: argv.nonInteractive !== undefined ? argv.nonInteractive as boolean : !!process.env.CI,
     environment: environment,
     dryRun: argv.dryRun !== undefined ? argv.dryRun as boolean : false,
+    verbose: argv.verbose !== undefined ? argv.verbose as boolean : false,
   };
 }
 
@@ -61,6 +62,11 @@ yargs(hideBin(process.argv))
     alias: 'y',
     type: 'boolean',
     description: 'Run in non-interactive mode (confirming actions automatically)',
+    default: false,
+  })
+  .option('verbose', {
+    type: 'boolean',
+    description: 'Show detailed SQL logs and verbose output',
     default: false,
   })
   .command(

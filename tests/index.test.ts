@@ -105,11 +105,15 @@ describe('Index (CLI)', () => {
       const { getContext } = require('../src/index');
       const argv = {
         nonInteractive: true,
-        'non-interactive': true
+        'non-interactive': true,
+        verbose: true,
+        dryRun: true
       };
       const context = getContext(argv);
 
       expect(context.nonInteractive).toBe(true);
+      expect(context.verbose).toBe(true);
+      expect(context.dryRun).toBe(true);
     });
 
     it('should set nonInteractive when CI environment is detected', () => {

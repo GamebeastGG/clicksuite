@@ -362,14 +362,16 @@ production:
           
           console.log(chalk.cyan('└') + chalk.cyan('─'.repeat(70)));
         } else {
-          console.log(chalk.gray('--- UP SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
-          console.log(chalk.gray(migration.upSQL.trim()));
-          console.log(chalk.gray('--------------'));
-          if (migration.table || migration.database) {
-              const details = [];
-              if (migration.database) details.push(`database: ${migration.database}`);
-              if (migration.table) details.push(`table: ${migration.table}`);
-              console.log(chalk.dim(`(Using ${details.join(', ')})`));
+          if (this.context.verbose) {
+            console.log(chalk.gray('--- UP SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
+            console.log(chalk.gray(migration.upSQL.trim()));
+            console.log(chalk.gray('--------------'));
+            if (migration.table || migration.database) {
+                const details = [];
+                if (migration.database) details.push(`database: ${migration.database}`);
+                if (migration.table) details.push(`table: ${migration.table}`);
+                console.log(chalk.dim(`(Using ${details.join(', ')})`));
+            }
           }
           await this.db.executeMigration(migration.upSQL, migration.querySettings);
           await this.db.markMigrationApplied(migration.version);
@@ -522,14 +524,16 @@ production:
           
           console.log(chalk.cyan('└') + chalk.cyan('─'.repeat(70)));
         } else {
-          console.log(chalk.gray('--- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
-          console.log(chalk.gray(migration.downSQL.trim()));
-          console.log(chalk.gray('----------------'));
-          if (migration.table || migration.database) {
-            const details = [];
-            if (migration.database) details.push(`database: ${migration.database}`);
-            if (migration.table) details.push(`table: ${migration.table}`);
-            console.log(chalk.dim(`(Using ${details.join(', ')})`));
+          if (this.context.verbose) {
+            console.log(chalk.gray('--- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
+            console.log(chalk.gray(migration.downSQL.trim()));
+            console.log(chalk.gray('----------------'));
+            if (migration.table || migration.database) {
+              const details = [];
+              if (migration.database) details.push(`database: ${migration.database}`);
+              if (migration.table) details.push(`table: ${migration.table}`);
+              console.log(chalk.dim(`(Using ${details.join(', ')})`));
+            }
           }
           await this.db.executeMigration(migration.downSQL, migration.querySettings);
           await this.db.markMigrationRolledBack(migration.version);
@@ -589,14 +593,16 @@ production:
           continue;
         }
         try {
-          console.log(chalk.gray('  --- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
-          console.log(chalk.gray(`  ${localFile.downSQL.trim().split('\n').join('\n  ')}`));
-          console.log(chalk.gray('  ----------------'));
-           if (localFile.table || localFile.database) {
-            const details = [];
-            if (localFile.database) details.push(`database: ${localFile.database}`);
-            if (localFile.table) details.push(`table: ${localFile.table}`);
-            console.log(chalk.dim(`  (Using ${details.join(', ')})`));
+          if (this.context.verbose) {
+            console.log(chalk.gray('  --- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
+            console.log(chalk.gray(`  ${localFile.downSQL.trim().split('\n').join('\n  ')}`));
+            console.log(chalk.gray('  ----------------'));
+             if (localFile.table || localFile.database) {
+              const details = [];
+              if (localFile.database) details.push(`database: ${localFile.database}`);
+              if (localFile.table) details.push(`table: ${localFile.table}`);
+              console.log(chalk.dim(`  (Using ${details.join(', ')})`));
+            }
           }
           await this.db.executeMigration(localFile.downSQL, localFile.querySettings);
         } catch (error: any) {
@@ -637,7 +643,9 @@ production:
         }
       });
       
-      console.log(chalk.dim(`Updating schema file for databases: ${Array.from(targetDatabases).join(', ')}`));
+      if (this.context.verbose) {
+        console.log(chalk.dim(`Updating schema file for databases: ${Array.from(targetDatabases).join(', ')}`));
+      }
       
       let allTables: Array<{name: string, database: string}> = [];
       let allViews: Array<{name: string, database: string}> = [];
@@ -654,7 +662,9 @@ production:
         allDictionaries.push(...dictionaries.map(d => ({...d, database: dbName})));
       }
       
-      console.log(chalk.dim(`Found ${allTables.length} tables, ${allViews.length} views, ${allDictionaries.length} dictionaries across all databases`));
+      if (this.context.verbose) {
+        console.log(chalk.dim(`Found ${allTables.length} tables, ${allViews.length} views, ${allDictionaries.length} dictionaries across all databases`));
+      }
       
       let schemaContent = `-- Auto-generated schema file
 -- This file contains table definitions, materialized view definitions, and dictionary definitions
@@ -707,7 +717,11 @@ production:
       }
 
       await fs.writeFile(schemaPath, schemaContent);
-      console.log(chalk.dim(`Schema file updated: ${schemaPath}`));
+      if (this.context.verbose) {
+        console.log(chalk.dim(`Schema file updated: ${schemaPath}`));
+      } else {
+        console.log(chalk.green('Schema file updated'));
+      }
     } catch (error: any) {
       console.warn(chalk.yellow(`Warning: Could not update schema file: ${error.message}`));
     }

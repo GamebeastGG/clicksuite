@@ -14,6 +14,8 @@ A robust CLI tool for managing ClickHouse database migrations with environment-s
 *   **Multiple query support** - execute multiple SQL statements in a single migration
 *   **Environment variable interpolation** - secure credential management with `${ENV_VAR}` syntax
 *   **Auto-generated schema.sql** - complete database schema tracking
+*   **Dry run mode** - preview migrations before executing with `--dry-run`
+*   **Verbose logging control** - clean output by default, detailed logs with `--verbose`
 *   **Full TypeScript support** - exported types for programmatic usage
 *   **Comprehensive migration management** - apply, rollback, reset, and status tracking
 
@@ -98,6 +100,8 @@ clicksuite <command> [options]
 ### Global Options
 
 *   `--non-interactive`, `-y`: Run in non-interactive mode, automatically confirming prompts (e.g., for `migrate:reset`). Useful for CI environments.
+*   `--verbose`: Show detailed SQL logs and verbose output. By default, only migration names and results are shown.
+*   `--dry-run`: Preview migrations without executing them (available for `migrate:up` and `migrate:down`). Shows exactly what would be executed.
 
 ### Commands
 
@@ -123,6 +127,8 @@ clicksuite <command> [options]
     *   If `migrationVersion` is omitted, applies all pending migrations.
     *   If `migrationVersion` is specified, applies all pending migrations up to and including that version.
     *   Example: `clicksuite migrate:up 20230101120000`
+    *   Use `--dry-run` to preview without executing: `clicksuite migrate:up --dry-run`
+    *   Use `--verbose` to see detailed SQL logs: `clicksuite migrate:up --verbose`
 
 *   **`clicksuite migrate:down [migrationVersion]`**
     *   Rolls back migrations for the current environment.
@@ -130,6 +136,8 @@ clicksuite <command> [options]
     *   If `migrationVersion` is specified, rolls back all migrations applied *after* that version, making the specified version the new latest applied migration. Prompts for confirmation if multiple migrations will be rolled back.
     *   Example (roll back last): `clicksuite migrate:down`
     *   Example (roll back to version): `clicksuite migrate:down 20230101120000`
+    *   Use `--dry-run` to preview without executing: `clicksuite migrate:down --dry-run`
+    *   Use `--verbose` to see detailed SQL logs: `clicksuite migrate:down --verbose`
 
 *   **`clicksuite migrate:reset`**
     *   Rolls back **all** applied migrations for the current environment by executing their `downSQL`.
@@ -333,6 +341,75 @@ export POSTGRES_DATABASE=gamebeast
 - Document required environment variables in your project's README
 - Use descriptive variable names (e.g., `POSTGRES_HOST` instead of `HOST`)
 - Set default values in your deployment scripts when appropriate
+
+## Advanced Features
+
+### Dry Run Mode
+
+Preview migrations before executing them with the `--dry-run` flag:
+
+```bash
+# Preview pending migrations without executing
+clicksuite migrate:up --dry-run
+
+# Preview rollback of last migration
+clicksuite migrate:down --dry-run
+
+# Preview rollback to specific version
+clicksuite migrate:down 20240101120000 --dry-run
+
+# Combine with verbose output for detailed SQL preview
+clicksuite migrate:up --dry-run --verbose
+```
+
+**Dry run features:**
+- Shows exactly which migrations would be executed
+- Displays detailed migration information (environment, database, table)
+- Shows SQL queries that would be executed
+- No database changes are made
+- No migration tracking updates occur
+- Schema file is not updated
+
+### Verbose Output
+
+Control the amount of logging with the `--verbose` flag:
+
+```bash
+# Default: Show migration names and results only
+clicksuite migrate:up
+
+# Verbose: Show detailed SQL logs and execution info
+clicksuite migrate:up --verbose
+
+# Verbose with dry run for maximum detail
+clicksuite migrate:up --dry-run --verbose
+```
+
+**Default output (clean):**
+- Migration names being processed
+- Success/failure messages
+- Schema update notifications
+
+**Verbose output (detailed):**
+- SQL queries being executed
+- Database operation details
+- Schema file update details
+- Debug information
+
+### Combining Flags
+
+All flags can be combined for maximum control:
+
+```bash
+# Non-interactive dry run with verbose output
+clicksuite migrate:up --non-interactive --dry-run --verbose
+
+# Production rollback with confirmation bypass
+clicksuite migrate:down --non-interactive
+
+# Preview rollback with detailed output
+clicksuite migrate:down --dry-run --verbose
+```
 
 ## Testing
 
