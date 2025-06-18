@@ -8,18 +8,36 @@ import inquirer from 'inquirer';
 
 const MIGRATION_FILE_REGEX = /^(\d{14})_([\w-]+)\.yml$/;
 
-// Helper function to format SQL with table and database names
+// Helper function to interpolate environment variables in SQL
+function interpolateEnvVars(sql: string): string {
+  return sql.replace(/\$\{([^}]+)\}/g, (_, envVarName) => {
+    const envValue = process.env[envVarName];
+    if (envValue === undefined) {
+      console.warn(chalk.yellow(`Warning: Environment variable '${envVarName}' is not set. Using empty string.`));
+      return '';
+    }
+    return envValue;
+  });
+}
+
+// Helper function to format SQL with table and database names and environment variables
 function formatSQL(sql?: string, tableName?: string, databaseName?: string): string | undefined {
   if (!sql) {
     return sql;
   }
   let formatted = sql;
+  
+  // First, replace table and database placeholders
   if (tableName) {
     formatted = formatted.replace(/\{table\}/g, tableName);
   }
   if (databaseName) {
     formatted = formatted.replace(/\{database\}/g, databaseName);
   }
+  
+  // Then, interpolate environment variables
+  formatted = interpolateEnvVars(formatted);
+  
   return formatted;
 }
 

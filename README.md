@@ -6,23 +6,16 @@
 [![codecov](https://codecov.io/gh/GamebeastGG/clicksuite/branch/main/graph/badge.svg)](https://codecov.io/gh/GamebeastGG/clicksuite)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
-A CLI tool for managing ClickHouse database migrations, inspired by [Houseplant](https://github.com/pnuckowski/houseplant).
+A robust CLI tool for managing ClickHouse database migrations with environment-specific configurations and TypeScript support.
 
-Clicksuite helps you manage your ClickHouse schema changes in a structured and environment-aware manner.
+## Key Features
 
-## Features
-
-*   Initialize migration tracking in your project.
-*   Generate new migration files with environment-specific sections (development, test, production).
-*   View the status of all migrations (pending, applied, inactive).
-*   Apply pending migrations up to the latest, or to a specific version.
-*   Roll back the last applied migration, or roll back to a specific version.
-*   Completely reset the database by rolling back all migrations and clearing the tracking table.
-*   Load an existing schema state by marking all local migrations as applied without running them.
-*   **Auto-generated schema.sql file** that updates after each migration with complete database schema.
-*   **Multiple query support** - execute multiple SQL statements in a single migration by separating them with semicolons.
-*   Configuration via `.env` file.
-*   **Full TypeScript support** with exported types for programmatic usage.
+*   **Environment-aware migrations** - separate SQL for development, test, and production
+*   **Multiple query support** - execute multiple SQL statements in a single migration
+*   **Environment variable interpolation** - secure credential management with `${ENV_VAR}` syntax
+*   **Auto-generated schema.sql** - complete database schema tracking
+*   **Full TypeScript support** - exported types for programmatic usage
+*   **Comprehensive migration management** - apply, rollback, reset, and status tracking
 
 ## Prerequisites
 
@@ -30,92 +23,69 @@ Clicksuite helps you manage your ClickHouse schema changes in a structured and e
 *   npm or yarn
 *   A running ClickHouse instance
 
-## Installation
+## Quick Start
 
-### From NPM
+### Installation
 
-**Global installation (recommended):**
+**Global installation (recommended for CLI usage):**
 ```bash
 npm install -g clicksuite
 ```
 
-**Local installation in your project:**
-```bash
-npm install --save-dev clicksuite
-```
-
-**Using npx (no installation required):**
+**Or use without installing:**
 ```bash
 npx clicksuite init
 ```
 
-### For Development
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/GamebeastGG/clicksuite.git
-   cd clicksuite
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Build the TypeScript project:**
-   ```bash
-   npm run build
-   ```
-
-4. **Make the CLI globally available (for development):**
-   ```bash
-   npm link
-   ```
-
-### Verify Installation
-
+**For projects (with programmatic usage):**
 ```bash
-clicksuite --help
+npm install --save-dev clicksuite
 ```
+
+### Initial Setup
+
+1. **Initialize in your project:**
+   ```bash
+   clicksuite init
+   ```
+
+2. **Configure your environment (`.env` file):**
+   ```env
+   CLICKHOUSE_URL=http://default@localhost:8123/my_database
+   ```
+
+3. **Generate your first migration:**
+   ```bash
+   clicksuite generate create_users_table
+   ```
+
+4. **Apply migrations:**
+   ```bash
+   clicksuite migrate
+   ```
 
 ## Configuration
 
-Clicksuite is configured using environment variables, typically loaded from a `.env` file in the root of your project. Create a `.env` file and populate it with your ClickHouse connection details.
-
-**Example `.env` file:**
+Configure Clicksuite using environment variables in a `.env` file:
 
 ```env
-# ClickHouse Connection Details (REQUIRED)
-# Format: protocol://username:password@host:port/database
-CLICKHOUSE_URL=http://default@localhost:8123/default
+# Required: ClickHouse connection URL
+CLICKHOUSE_URL=http://default@localhost:8123/my_database
 
-# Optional: specify your ClickHouse cluster name if applicable
-CLICKHOUSE_CLUSTER=
+# Optional: For clustered deployments  
+CLICKHOUSE_CLUSTER='{cluster}'
 
-# Clicksuite Settings
-# Base directory for Clicksuite files. Actual migration .yml files go into a 'migrations' subdirectory.
-# Defaults to '.' (project root) if not set.
+# Optional: Custom migrations directory (defaults to './migrations')
 CLICKSUITE_MIGRATIONS_DIR=./db_migrations
 
-# Current working environment. Affects which SQL is run from migration files.
-# Options: development, test, production. Defaults to 'development'.
-CLICKSUITE_ENVIRONMENT=development
+# Optional: Environment (defaults to 'development')
+CLICKSUITE_ENVIRONMENT=production
 ```
 
-**Examples of CLICKHOUSE_URL values:**
-
-- Local development: `http://default@localhost:8123/my_database`
-- With credentials: `https://username:password@clickhouse.example.com:8443/production_db`
-- Docker Compose: `http://default@clickhouse:8123/analytics`
-
-**Important Notes:**
-
-*   The actual migration `.yml` files are stored in a subdirectory named `migrations` under the path specified by `CLICKSUITE_MIGRATIONS_DIR`.
-    *   For example, if `CLICKSUITE_MIGRATIONS_DIR=./db_configs`, then migrations will be in `./db_configs/migrations/`.
-    *   If `CLICKSUITE_MIGRATIONS_DIR` is not set, it defaults to the project root (`.`), so migrations will be in `./migrations/`.
-*   The `__clicksuite_migrations` table will be created in the `default` database to track migration statuses across all databases.
-* If you usually run queries on a cluster using `ON CLUSTER '{cluster}'`, set the `CLICKHOUSE_CLUSTER` environment variable to `'{cluster}'`
-  * For example, `CLICKHOUSE_CLUSTER='{cluster}'`
+**Connection URL Examples:**
+- Local: `http://default@localhost:8123/my_database`
+- Remote: `https://user:pass@clickhouse.example.com:8443/prod_db`
+- Docker: `http://default@clickhouse:8123/analytics`
 
 ## Usage
 
@@ -300,6 +270,69 @@ Executing 4 migration queries:
   Query 3/4: CREATE TABLE ecommerce.orders (id UInt32, user_id UInt32, amount Decimal(10,2), created_at DateTime64) ENGINE = MergeTree() ORDER BY id
   Query 4/4: INSERT INTO ecommerce.users VALUES (1, 'admin@example.com', now64())
 ```
+
+### Environment Variable Interpolation
+
+Clicksuite supports interpolating environment variables into your SQL migrations using the `${ENV_VAR_NAME}` syntax. This is particularly useful for sensitive data like database credentials that shouldn't be hardcoded in migration files.
+
+**Example migration with environment variable interpolation:**
+
+```yaml
+version: "20240115104000"
+name: "create organization dictionary"
+table: "organization_info"
+database: "gamebeast"
+
+development:
+  up: |
+    CREATE DICTIONARY IF NOT EXISTS {database}.{table} (
+      id UInt64,
+      name String,
+      created_at DateTime,
+      created_by String
+    ) PRIMARY KEY id
+    LIFETIME(MIN 600 MAX 900)
+    SOURCE(POSTGRESQL(
+        port ${POSTGRES_PORT}
+        host '${POSTGRES_HOST}'
+        user '${POSTGRES_USER}'
+        password '${POSTGRES_PASSWORD}'
+        db '${POSTGRES_DATABASE}'
+        table 'organizations'
+    ))
+    LAYOUT(HASHED());
+  down: |
+    DROP DICTIONARY IF EXISTS {database}.{table};
+```
+
+**Required environment variables for the above example:**
+```bash
+export POSTGRES_HOST=host.docker.internal
+export POSTGRES_PORT=5432
+export POSTGRES_USER=postgres
+export POSTGRES_PASSWORD=postgres
+export POSTGRES_DATABASE=gamebeast
+```
+
+**Key features of environment variable interpolation:**
+
+- **Secure credentials**: Keep sensitive data like passwords out of your migration files
+- **Environment-specific values**: Use different database hosts, ports, or credentials per environment
+- **Automatic interpolation**: Variables are replaced during migration execution
+- **Warning for missing variables**: If an environment variable is not set, a warning is displayed and an empty string is used
+- **Works with existing placeholders**: Environment variables work alongside `{table}` and `{database}` placeholders
+- **Multiple variables**: You can use as many environment variables as needed in a single migration
+
+**Supported syntax:**
+- `${VARIABLE_NAME}` - Standard environment variable interpolation
+- `${DB_HOST}` - Simple variable names
+- `${DB_CONNECTION_USER_NAME}` - Complex variable names with underscores
+
+**Best practices:**
+- Use environment variables for sensitive data (passwords, API keys, hosts)
+- Document required environment variables in your project's README
+- Use descriptive variable names (e.g., `POSTGRES_HOST` instead of `HOST`)
+- Set default values in your deployment scripts when appropriate
 
 ## Testing
 

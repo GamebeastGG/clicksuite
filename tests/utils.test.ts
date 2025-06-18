@@ -53,17 +53,35 @@ describe('Utility Functions', () => {
   });
 
   describe('formatSQL Function', () => {
+    // Helper function to interpolate environment variables in SQL (copied from runner.ts for testing)
+    const interpolateEnvVars = (sql: string): string => {
+      return sql.replace(/\$\{([^}]+)\}/g, (_, envVarName) => {
+        const envValue = process.env[envVarName];
+        if (envValue === undefined) {
+          return '';
+        }
+        return envValue;
+      });
+    };
+
+    // Helper function to format SQL with table and database names and environment variables (copied from runner.ts for testing)
     const formatSQL = (sql?: string, tableName?: string, databaseName?: string): string | undefined => {
       if (!sql) {
         return sql;
       }
       let formatted = sql;
+      
+      // First, replace table and database placeholders
       if (tableName) {
         formatted = formatted.replace(/\{table\}/g, tableName);
       }
       if (databaseName) {
         formatted = formatted.replace(/\{database\}/g, databaseName);
       }
+      
+      // Then, interpolate environment variables
+      formatted = interpolateEnvVars(formatted);
+      
       return formatted;
     };
 
@@ -144,6 +162,111 @@ describe('Utility Functions', () => {
       const result = formatSQL(sql, '', '');
 
       expect(result).toBe('CREATE TABLE {database}.{table}');
+    });
+
+    it('should interpolate environment variables', () => {
+      // Set test environment variables
+      process.env.TEST_DB_HOST = 'localhost';
+      process.env.TEST_DB_USER = 'postgres';
+      process.env.TEST_DB_PASSWORD = 'secret123';
+
+      const sql = `CREATE DICTIONARY test_dict
+        SOURCE(POSTGRESQL(
+            host '\${TEST_DB_HOST}'
+            user '\${TEST_DB_USER}'
+            password '\${TEST_DB_PASSWORD}'
+        ))`;
+
+      const result = formatSQL(sql);
+
+      expect(result).toBe(`CREATE DICTIONARY test_dict
+        SOURCE(POSTGRESQL(
+            host 'localhost'
+            user 'postgres'
+            password 'secret123'
+        ))`);
+
+      // Clean up
+      delete process.env.TEST_DB_HOST;
+      delete process.env.TEST_DB_USER;
+      delete process.env.TEST_DB_PASSWORD;
+    });
+
+    it('should handle missing environment variables', () => {
+      const sql = 'host \'${MISSING_ENV_VAR}\'';
+
+      const result = formatSQL(sql);
+
+      expect(result).toBe('host \'\'');
+    });
+
+    it('should interpolate environment variables along with table and database placeholders', () => {
+      process.env.TEST_PORT = '5432';
+      process.env.TEST_DB_NAME = 'analytics';
+
+      const sql = `CREATE DICTIONARY {database}.{table} 
+        SOURCE(POSTGRESQL(
+            port \${TEST_PORT}
+            db '\${TEST_DB_NAME}'
+        ))`;
+
+      const result = formatSQL(sql, 'users', 'gamebeast');
+
+      expect(result).toBe(`CREATE DICTIONARY gamebeast.users 
+        SOURCE(POSTGRESQL(
+            port 5432
+            db 'analytics'
+        ))`);
+
+      // Clean up
+      delete process.env.TEST_PORT;
+      delete process.env.TEST_DB_NAME;
+    });
+
+    it('should handle multiple environment variables in one SQL statement', () => {
+      process.env.TEST_HOST = 'host.docker.internal';
+      process.env.TEST_USER = 'admin';
+      process.env.TEST_PASS = 'adminpass';
+      process.env.TEST_PORT = '5432';
+
+      const sql = `CREATE DICTIONARY organization_info
+        SOURCE(POSTGRESQL(
+            port \${TEST_PORT}
+            host '\${TEST_HOST}'
+            user '\${TEST_USER}'
+            password '\${TEST_PASS}'
+        ))`;
+
+      const result = formatSQL(sql);
+
+      expect(result).toBe(`CREATE DICTIONARY organization_info
+        SOURCE(POSTGRESQL(
+            port 5432
+            host 'host.docker.internal'
+            user 'admin'
+            password 'adminpass'
+        ))`);
+
+      // Clean up
+      delete process.env.TEST_HOST;
+      delete process.env.TEST_USER;
+      delete process.env.TEST_PASS;
+      delete process.env.TEST_PORT;
+    });
+
+    it('should handle environment variables with complex names', () => {
+      process.env.DB_CONNECTION_HOST = 'db.example.com';
+      process.env.DB_CONNECTION_USER_NAME = 'db_user';
+
+      const sql = 'host \'${DB_CONNECTION_HOST}\' user \'${DB_CONNECTION_USER_NAME}\'';
+
+      const result = formatSQL(sql);
+
+      expect(result).toBe('host \'db.example.com\' user \'db_user\'');
+
+      // Clean up
+      delete process.env.DB_CONNECTION_HOST;
+      delete process.env.DB_CONNECTION_USER_NAME;
     });
   });
 
