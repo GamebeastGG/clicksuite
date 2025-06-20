@@ -53,9 +53,9 @@ export class Db {
     try {
       const resultSet = await this.client.query({
         query: `SELECT version, active, created_at FROM default.__clicksuite_migrations WHERE active = 1 ORDER BY version ASC`,
-        format: 'JSONEachRow',
       });
-      const migrations = await resultSet.json() as Array<{ version: string, active: number, created_at: string }>;
+      const response = await resultSet.json();
+      const migrations = response.data as Array<{ version: string, active: number, created_at: string }>;
       return migrations;
     } catch (error) {
       console.error(chalk.bold.red('❌ Failed to get applied migrations:'), error);
@@ -67,9 +67,9 @@ export class Db {
     try {
       const resultSet = await this.client.query({
         query: `SELECT version, active, created_at FROM default.__clicksuite_migrations ORDER BY version ASC`,
-        format: 'JSONEachRow',
       });
-      const migrations = await resultSet.json() as Array<{ version: string, active: number, created_at: string }>;
+      const response = await resultSet.json();
+      const migrations = response.data as Array<{ version: string, active: number, created_at: string }>;
       return migrations;
     } catch (error) {
       console.error(chalk.bold.red('❌ Failed to get all migration records:'), error);
@@ -207,9 +207,9 @@ export class Db {
     try {
       const resultSet = await this.client.query({
         query: `SELECT name FROM system.tables WHERE database = '${this.context.database}' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'`,
-        format: 'JSONEachRow'
       });
-      return await resultSet.json() as {name: string}[];
+      const response = await resultSet.json();
+      return response.data as {name: string}[];
     } catch (error) {
       console.error(chalk.bold.red('❌ Failed to get database tables:'), error);
       return [];
@@ -220,9 +220,9 @@ export class Db {
      try {
       const resultSet = await this.client.query({
         query: `SELECT name FROM system.tables WHERE database = '${this.context.database}' AND engine = 'MaterializedView'`,
-        format: 'JSONEachRow'
       });
-      return await resultSet.json() as {name: string}[];
+      const response = await resultSet.json();
+      return response.data as {name: string}[];
     } catch (error) {
       console.error(chalk.bold.red('❌ Failed to get materialized views:'), error);
       return [];
@@ -233,9 +233,9 @@ export class Db {
     try {
       const resultSet = await this.client.query({
         query: `SELECT name FROM system.dictionaries WHERE database = '${this.context.database}'`,
-        format: 'JSONEachRow'
       });
-      return await resultSet.json() as {name: string}[];
+      const response = await resultSet.json();
+      return response.data as {name: string}[];
     } catch (error) {
       console.error(chalk.bold.red('❌ Failed to get dictionaries:'), error);
       return [];
@@ -246,9 +246,9 @@ export class Db {
     try {
       const resultSet = await this.client.query({
         query: `SELECT name FROM system.tables WHERE database = '${database}' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'`,
-        format: 'JSONEachRow'
       });
-      return await resultSet.json() as {name: string}[];
+      const response = await resultSet.json();
+      return response.data as {name: string}[];
     } catch (error) {
       console.error(chalk.bold.red(`❌ Failed to get tables for database ${database}:`), error);
       return [];
@@ -259,9 +259,9 @@ export class Db {
     try {
       const resultSet = await this.client.query({
         query: `SELECT name FROM system.tables WHERE database = '${database}' AND engine = 'MaterializedView'`,
-        format: 'JSONEachRow'
       });
-      return await resultSet.json() as {name: string}[];
+      const response = await resultSet.json();
+      return response.data as {name: string}[];
     } catch (error) {
       console.error(chalk.bold.red(`❌ Failed to get materialized views for database ${database}:`), error);
       return [];
@@ -272,9 +272,9 @@ export class Db {
     try {
       const resultSet = await this.client.query({
         query: `SELECT name FROM system.dictionaries WHERE database = '${database}'`,
-        format: 'JSONEachRow'
       });
-      return await resultSet.json() as {name: string}[];
+      const response = await resultSet.json();
+      return response.data as {name: string}[];
     } catch (error) {
       console.error(chalk.bold.red(`❌ Failed to get dictionaries for database ${database}:`), error);
       return [];
