@@ -870,6 +870,100 @@ describe('Db', () => {
     });
   });
 
+  describe('getDatabaseTablesForDb', () => {
+    it('should return list of tables for specific database', async () => {
+      const mockTables = [{ name: 'users' }, { name: 'orders' }];
+      const mockResultSet = {
+        json: jest.fn().mockResolvedValue(mockTables)
+      };
+      mockClient.query.mockResolvedValue(mockResultSet);
+
+      const result = await db.getDatabaseTablesForDb('custom_db');
+
+      expect(mockClient.query).toHaveBeenCalledWith({
+        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'",
+        format: 'JSONEachRow'
+      });
+      expect(result).toEqual(mockTables);
+    });
+
+    it('should return empty array on error', async () => {
+      mockClient.query.mockRejectedValue(new Error('Query failed'));
+
+      const result = await db.getDatabaseTablesForDb('custom_db');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getDatabaseMaterializedViewsForDb', () => {
+    it('should return list of materialized views for specific database', async () => {
+      const mockViews = [{ name: 'user_stats_mv' }, { name: 'order_stats_mv' }];
+      const mockResultSet = {
+        json: jest.fn().mockResolvedValue(mockViews)
+      };
+      mockClient.query.mockResolvedValue(mockResultSet);
+
+      const result = await db.getDatabaseMaterializedViewsForDb('custom_db');
+
+      expect(mockClient.query).toHaveBeenCalledWith({
+        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine = 'MaterializedView'",
+        format: 'JSONEachRow'
+      });
+      expect(result).toEqual(mockViews);
+    });
+
+    it('should return empty array on error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const error = new Error('Materialized views query failed');
+      mockClient.query.mockRejectedValue(error);
+
+      const result = await db.getDatabaseMaterializedViewsForDb('custom_db');
+
+      expect(result).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Failed to get materialized views for database custom_db:'),
+        error
+      );
+      
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('getDatabaseDictionariesForDb', () => {
+    it('should return list of dictionaries for specific database', async () => {
+      const mockDictionaries = [{ name: 'countries_dict' }, { name: 'languages_dict' }];
+      const mockResultSet = {
+        json: jest.fn().mockResolvedValue(mockDictionaries)
+      };
+      mockClient.query.mockResolvedValue(mockResultSet);
+
+      const result = await db.getDatabaseDictionariesForDb('custom_db');
+
+      expect(mockClient.query).toHaveBeenCalledWith({
+        query: "SELECT name FROM system.dictionaries WHERE database = 'custom_db'",
+        format: 'JSONEachRow'
+      });
+      expect(result).toEqual(mockDictionaries);
+    });
+
+    it('should return empty array on error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const error = new Error('Dictionaries query failed');
+      mockClient.query.mockRejectedValue(error);
+
+      const result = await db.getDatabaseDictionariesForDb('custom_db');
+
+      expect(result).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Failed to get dictionaries for database custom_db:'),
+        error
+      );
+      
+      consoleSpy.mockRestore();
+    });
+  });
+
   describe('getCreateTableQueryForDb', () => {
     it('should handle materialized views with TABLE query type', async () => {
       const mockResponse = `CREATE MATERIALIZED VIEW test_view\\n(\\n    \`id\` UInt64\\n)\\nENGINE = MergeTree()\\nORDER BY id`;
@@ -881,8 +975,7 @@ describe('Db', () => {
       const result = await db.getCreateTableQueryForDb('test_view', 'test_db', 'VIEW');
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SHOW CREATE TABLE test_db.test_view',
-        format: 'TabSeparated'
+        query: 'SHOW CREATE TABLE test_db.test_view'
       });
       // Verify that escape characters are properly converted
       expect(result).toContain('\n');
@@ -900,8 +993,7 @@ describe('Db', () => {
       const result = await db.getCreateTableQueryForDb('test_table', 'test_db', 'TABLE');
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SHOW CREATE TABLE test_db.test_table',
-        format: 'TabSeparated'
+        query: 'SHOW CREATE TABLE test_db.test_table'
       });
       expect(result).toContain('\n');
       expect(result).not.toContain('\\n');
@@ -917,8 +1009,7 @@ describe('Db', () => {
       const result = await db.getCreateTableQueryForDb('test_dict', 'test_db', 'DICTIONARY');
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SHOW CREATE DICTIONARY test_db.test_dict',
-        format: 'TabSeparated'
+        query: 'SHOW CREATE DICTIONARY test_db.test_dict'
       });
       expect(result).toContain('\n');
       expect(result).not.toContain('\\n');
