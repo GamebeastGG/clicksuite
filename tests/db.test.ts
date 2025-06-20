@@ -960,7 +960,7 @@ describe('Db', () => {
     it('should handle materialized views with TABLE query type', async () => {
       const mockResponse = `CREATE MATERIALIZED VIEW test_view\\n(\\n    \`id\` UInt64\\n)\\nENGINE = MergeTree()\\nORDER BY id`;
       const mockResultSet = {
-        text: jest.fn().mockResolvedValue(mockResponse)
+        json: jest.fn().mockResolvedValue({ data: [{ statement: mockResponse }] })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
@@ -978,7 +978,7 @@ describe('Db', () => {
     it('should handle tables with TABLE query type', async () => {
       const mockResponse = `CREATE TABLE test_table\\n(\\n    \`id\` UInt64\\n)\\nENGINE = MergeTree()\\nORDER BY id`;
       const mockResultSet = {
-        text: jest.fn().mockResolvedValue(mockResponse)
+        json: jest.fn().mockResolvedValue({ data: [{ statement: mockResponse }] })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
@@ -994,7 +994,7 @@ describe('Db', () => {
     it('should handle dictionaries with DICTIONARY query type', async () => {
       const mockResponse = `CREATE DICTIONARY test_dict\\n(\\n    \`id\` UInt64\\n)\\nPRIMARY KEY id\\nSOURCE(CLICKHOUSE(DB \\'test\\' TABLE \\'source\\'))\\nLIFETIME(600)`;
       const mockResultSet = {
-        text: jest.fn().mockResolvedValue(mockResponse)
+        json: jest.fn().mockResolvedValue({ data: [{ statement: mockResponse }] })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
@@ -1012,7 +1012,7 @@ describe('Db', () => {
     it('should unescape quotes and backslashes properly', async () => {
       const mockResponse = `CREATE TABLE test\\n(\\n    \`name\` String DEFAULT \\'test\\',\\n    \`path\` String DEFAULT \\'C:\\\\\\\\test\\'\\n)`;
       const mockResultSet = {
-        text: jest.fn().mockResolvedValue(mockResponse)
+        json: jest.fn().mockResolvedValue({ data: [{ statement: mockResponse }] })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
@@ -1031,7 +1031,7 @@ describe('Db', () => {
       
       const mockResponse = `CREATE TABLE test\\n(\\n    \`id\` UInt64\\n)`;
       const mockResultSet = {
-        text: jest.fn().mockResolvedValue(mockResponse)
+        json: jest.fn().mockResolvedValue({ data: [{ statement: mockResponse }] })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
