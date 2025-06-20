@@ -303,7 +303,12 @@ export class Db {
         console.log(chalk.gray(`🔍  Executing schema query: ${showQuery}`));
       }
       const resultSet = await this.client.query({ query: showQuery });
-      const resultText = await resultSet.text();
+      const response = await resultSet.json<{statement: string}>();
+      if (response.data.length === 0) {
+        throw new Error(`No data returned`);
+      }
+
+      const resultText = response.data[0].statement;
       
       // Clean up the result text by replacing literal \n with actual newlines and unescaping quotes
       const cleanedText = resultText
