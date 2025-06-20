@@ -674,42 +674,63 @@ production:
 
       // Get table definitions
       if (allTables.length > 0) {
-        schemaContent += '-- Tables\n';
+        schemaContent += '\n-- =====================================================\n';
+        schemaContent += '-- TABLES\n';
+        schemaContent += '-- =====================================================\n';
         for (const table of allTables) {
           try {
             const createStatement = await this.db.getCreateTableQueryForDb(table.name, table.database, 'TABLE');
             schemaContent += `\n-- Table: ${table.database}.${table.name}\n`;
-            schemaContent += createStatement + ';\n';
+            schemaContent += createStatement;
+            // Ensure the statement ends with a semicolon and proper spacing
+            if (!createStatement.endsWith(';')) {
+              schemaContent += ';';
+            }
+            schemaContent += '\n\n';
           } catch (e) {
-            console.warn(chalk.yellow(`⚠️ Warning: Could not get CREATE statement for table ${table.database}.${table.name}`));
+            console.warn(chalk.yellow(`⚠️  Warning: Could not get CREATE statement for table ${table.database}.${table.name}`));
           }
         }
       }
 
       // Get materialized view definitions
       if (allViews.length > 0) {
-        schemaContent += '\n-- Materialized Views\n';
+        schemaContent += '\n-- =====================================================\n';
+        schemaContent += '-- MATERIALIZED VIEWS\n';
+        schemaContent += '-- =====================================================\n';
         for (const view of allViews) {
           try {
             const createStatement = await this.db.getCreateTableQueryForDb(view.name, view.database, 'VIEW');
             schemaContent += `\n-- Materialized View: ${view.database}.${view.name}\n`;
-            schemaContent += createStatement + ';\n';
+            schemaContent += createStatement;
+            // Ensure the statement ends with a semicolon and proper spacing
+            if (!createStatement.endsWith(';')) {
+              schemaContent += ';';
+            }
+            schemaContent += '\n\n';
           } catch (e) {
-            console.warn(chalk.yellow(`⚠️ Warning: Could not get CREATE statement for materialized view ${view.database}.${view.name}`));
+            console.warn(chalk.yellow(`⚠️  Warning: Could not get CREATE statement for materialized view ${view.database}.${view.name}`));
           }
         }
       }
 
       // Get dictionary definitions
       if (allDictionaries.length > 0) {
-        schemaContent += '\n-- Dictionaries\n';
+        schemaContent += '\n-- =====================================================\n';
+        schemaContent += '-- DICTIONARIES\n';
+        schemaContent += '-- =====================================================\n';
         for (const dict of allDictionaries) {
           try {
             const createStatement = await this.db.getCreateTableQueryForDb(dict.name, dict.database, 'DICTIONARY');
             schemaContent += `\n-- Dictionary: ${dict.database}.${dict.name}\n`;
-            schemaContent += createStatement + ';\n';
+            schemaContent += createStatement;
+            // Ensure the statement ends with a semicolon and proper spacing
+            if (!createStatement.endsWith(';')) {
+              schemaContent += ';';
+            }
+            schemaContent += '\n\n';
           } catch (e) {
-            console.warn(chalk.yellow(`⚠️ Warning: Could not get CREATE statement for dictionary ${dict.name}`));
+            console.warn(chalk.yellow(`⚠️  Warning: Could not get CREATE statement for dictionary ${dict.name}`));
           }
         }
       }

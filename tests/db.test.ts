@@ -683,4 +683,103 @@ describe('Db', () => {
       );
     });
   });
+
+  describe('getCreateTableQueryForDb', () => {
+    it('should handle materialized views with TABLE query type', async () => {
+      const mockResponse = `CREATE MATERIALIZED VIEW test_view\\n(\\n    \`id\` UInt64\\n)\\nENGINE = MergeTree()\\nORDER BY id`;
+      const mockResultSet = {
+        text: jest.fn().mockResolvedValue(mockResponse)
+      };
+      mockClient.query.mockResolvedValue(mockResultSet);
+
+      const result = await db.getCreateTableQueryForDb('test_view', 'test_db', 'VIEW');
+
+      expect(mockClient.query).toHaveBeenCalledWith({
+        query: 'SHOW CREATE TABLE test_db.test_view',
+        format: 'TabSeparated'
+      });
+      // Verify that escape characters are properly converted
+      expect(result).toContain('\n');
+      expect(result).not.toContain('\\n');
+      expect(result).toContain('CREATE MATERIALIZED VIEW test_view');
+    });
+
+    it('should handle tables with TABLE query type', async () => {
+      const mockResponse = `CREATE TABLE test_table\\n(\\n    \`id\` UInt64\\n)\\nENGINE = MergeTree()\\nORDER BY id`;
+      const mockResultSet = {
+        text: jest.fn().mockResolvedValue(mockResponse)
+      };
+      mockClient.query.mockResolvedValue(mockResultSet);
+
+      const result = await db.getCreateTableQueryForDb('test_table', 'test_db', 'TABLE');
+
+      expect(mockClient.query).toHaveBeenCalledWith({
+        query: 'SHOW CREATE TABLE test_db.test_table',
+        format: 'TabSeparated'
+      });
+      expect(result).toContain('\n');
+      expect(result).not.toContain('\\n');
+    });
+
+    it('should handle dictionaries with DICTIONARY query type', async () => {
+      const mockResponse = `CREATE DICTIONARY test_dict\\n(\\n    \`id\` UInt64\\n)\\nPRIMARY KEY id\\nSOURCE(CLICKHOUSE(DB \\'test\\' TABLE \\'source\\'))\\nLIFETIME(600)`;
+      const mockResultSet = {
+        text: jest.fn().mockResolvedValue(mockResponse)
+      };
+      mockClient.query.mockResolvedValue(mockResultSet);
+
+      const result = await db.getCreateTableQueryForDb('test_dict', 'test_db', 'DICTIONARY');
+
+      expect(mockClient.query).toHaveBeenCalledWith({
+        query: 'SHOW CREATE DICTIONARY test_db.test_dict',
+        format: 'TabSeparated'
+      });
+      expect(result).toContain('\n');
+      expect(result).not.toContain('\\n');
+      expect(result).toContain("'test'");
+      expect(result).not.toContain("\\'test\\'");
+    });
+
+    it('should unescape quotes and backslashes properly', async () => {
+      const mockResponse = `CREATE TABLE test\\n(\\n    \`name\` String DEFAULT \\'test\\',\\n    \`path\` String DEFAULT \\'C:\\\\\\\\test\\'\\n)`;
+      const mockResultSet = {
+        text: jest.fn().mockResolvedValue(mockResponse)
+      };
+      mockClient.query.mockResolvedValue(mockResultSet);
+
+      const result = await db.getCreateTableQueryForDb('test', 'test_db', 'TABLE');
+
+      expect(result).toContain("DEFAULT 'test'");
+      expect(result).toContain("DEFAULT 'C:\\\\test'");
+      expect(result).not.toContain("\\'");
+      expect(result).not.toContain("\\\\\\\\");
+    });
+
+    it('should handle verbose logging', async () => {
+      const verboseContext = { ...context, verbose: true };
+      const verboseDb = new Db(verboseContext);
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      
+      const mockResponse = `CREATE TABLE test\\n(\\n    \`id\` UInt64\\n)`;
+      const mockResultSet = {
+        text: jest.fn().mockResolvedValue(mockResponse)
+      };
+      mockClient.query.mockResolvedValue(mockResultSet);
+
+      await verboseDb.getCreateTableQueryForDb('test', 'test_db', 'TABLE');
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('🔍  Executing schema query: SHOW CREATE TABLE test_db.test')
+      );
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle query execution errors', async () => {
+      const error = new Error('Query failed');
+      mockClient.query.mockRejectedValue(error);
+
+      await expect(db.getCreateTableQueryForDb('test', 'test_db', 'TABLE')).rejects.toThrow('Query failed');
+    });
+  });
 });

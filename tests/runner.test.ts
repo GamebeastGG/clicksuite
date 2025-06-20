@@ -1205,14 +1205,14 @@ describe('Runner', () => {
       expect(schemaContent).toContain('-- Auto-generated schema file');
       expect(schemaContent).toContain('-- Environment: test');
       expect(schemaContent).toContain('-- Databases: test_db, gamebeast');
-      expect(schemaContent).toContain('-- Tables');
+      expect(schemaContent).toContain('-- TABLES');
       expect(schemaContent).toContain('-- Table: test_db.users');
       expect(schemaContent).toContain('CREATE TABLE test_db.users (id UInt32) ENGINE = MergeTree() ORDER BY id;');
       expect(schemaContent).toContain('-- Table: test_db.orders');
-      expect(schemaContent).toContain('-- Materialized Views');
+      expect(schemaContent).toContain('-- MATERIALIZED VIEWS');
       expect(schemaContent).toContain('-- Materialized View: test_db.user_stats_mv');
       expect(schemaContent).toContain('CREATE MATERIALIZED VIEW test_db.user_stats_mv AS SELECT count() FROM users;');
-      expect(schemaContent).toContain('-- Dictionaries');
+      expect(schemaContent).toContain('-- DICTIONARIES');
       expect(schemaContent).toContain('-- Dictionary: test_db.countries_dict');
       expect(schemaContent).toContain('CREATE DICTIONARY test_db.countries_dict (id UInt32, name String) PRIMARY KEY id;');
     });

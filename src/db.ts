@@ -296,13 +296,26 @@ export class Db {
 
   async getCreateTableQueryForDb(name: string, database: string, type: 'TABLE' | 'VIEW' | 'DICTIONARY'): Promise<string> {
     try {
-      const objectType = type === 'VIEW' ? 'MATERIALIZED VIEW' : type;
+      // For materialized views, we need to use SHOW CREATE TABLE, not SHOW CREATE MATERIALIZED VIEW
+      const objectType = type === 'VIEW' ? 'TABLE' : type;
       const showQuery = `SHOW CREATE ${objectType} ${database}.${name}`;
+      if (this.context.verbose) {
+        console.log(chalk.gray(`🔍  Executing schema query: ${showQuery}`));
+      }
       const resultSet = await this.client.query({ query: showQuery, format: 'TabSeparated' });
       const resultText = await resultSet.text();
-      return resultText.trim();
+      
+      // Clean up the result text by replacing literal \n with actual newlines and unescaping quotes
+      const cleanedText = resultText
+        .trim()
+        .replace(/\\n/g, '\n')           // Replace literal \n with actual newlines
+        .replace(/\\'/g, "'")           // Unescape single quotes
+        .replace(/\\"/g, '"')           // Unescape double quotes
+        .replace(/\\\\/g, '\\');        // Unescape backslashes
+      
+      return cleanedText;
     } catch (error) {
-      console.error(chalk.bold.red(`❌ Failed to get create query for ${type} ${database}.${name}:`), error);
+      console.error(chalk.bold.red(`❌  Failed to get create query for ${type} ${database}.${name}:`), error);
       throw error;
     }
   }
