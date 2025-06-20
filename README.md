@@ -440,11 +440,6 @@ The test suite includes:
 - **Type Tests**: TypeScript interface validation
 - **Error Handling Tests**: Database errors, file system errors, validation failures
 
-Current test coverage:
-- 121 test cases across 6 test suites
-- 66.87% overall statement coverage
-- 86.59% coverage for core migration runner logic
-
 ### Test Files
 
 - `tests/db.test.ts` - Database operations and ClickHouse client

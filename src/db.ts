@@ -34,7 +34,7 @@ export class Db {
           ORDER BY (version)
         `;
       if (this.context.verbose) {
-        console.log(chalk.gray('Executing initMigrationsTable query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
+        console.log(chalk.gray('🔍 Executing initMigrationsTable query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
       }
       await this.client.command({
         query: query,
@@ -42,9 +42,9 @@ export class Db {
           wait_end_of_query: 1,
         },
       });
-      console.log(chalk.green('Successfully ensured __clicksuite_migrations table exists in default database.'));
+      console.log(chalk.green('✅ Successfully ensured __clicksuite_migrations table exists in default database.'));
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to create __clicksuite_migrations table:'), error);
+      console.error(chalk.bold.red('❌ Failed to create __clicksuite_migrations table:'), error);
       throw error;
     }
   }
@@ -58,7 +58,7 @@ export class Db {
       const migrations = await resultSet.json() as Array<{ version: string, active: number, created_at: string }>;
       return migrations;
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to get applied migrations:'), error);
+      console.error(chalk.bold.red('❌ Failed to get applied migrations:'), error);
       return [];
     }
   }
@@ -72,7 +72,7 @@ export class Db {
       const migrations = await resultSet.json() as Array<{ version: string, active: number, created_at: string }>;
       return migrations;
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to get all migration records:'), error);
+      console.error(chalk.bold.red('❌ Failed to get all migration records:'), error);
       return [];
     }
   }
@@ -90,13 +90,13 @@ export class Db {
       const queries = this.splitQueries(query);
       
       if (queries.length === 0) {
-        console.warn(chalk.yellow('No queries found to execute'));
+        console.warn(chalk.yellow('⚠️ No queries found to execute'));
         return;
       }
 
       if (queries.length === 1) {
         if (this.context.verbose) {
-          console.log(chalk.gray('Executing migration query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
+          console.log(chalk.gray('🔍 Executing migration query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
         }
         await this.client.command({
           query: query,
@@ -107,10 +107,10 @@ export class Db {
         });
       } else {
         if (this.context.verbose) {
-          console.log(chalk.gray(`Executing ${queries.length} migration queries:`));
+          console.log(chalk.gray(`🔍 Executing ${queries.length} migration queries:`));
           for (let i = 0; i < queries.length; i++) {
             const individualQuery = queries[i];
-            console.log(chalk.gray(`  Query ${i + 1}/${queries.length}:`), chalk.gray(individualQuery.replace(/\n\s*/g, ' ').trim()));
+            console.log(chalk.gray(`🔍   Query ${i + 1}/${queries.length}:`), chalk.gray(individualQuery.replace(/\n\s*/g, ' ').trim()));
           }
         }
         for (let i = 0; i < queries.length; i++) {
@@ -125,7 +125,7 @@ export class Db {
         }
       }
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to execute migration query:'), error);
+      console.error(chalk.bold.red('❌ Failed to execute migration query:'), error);
       throw error;
     }
   }
@@ -133,7 +133,7 @@ export class Db {
   async markMigrationApplied(version: string) {
     try {
       if (this.context.verbose) {
-        console.log(chalk.gray('Marking migration applied with version:'), chalk.gray(version));
+        console.log(chalk.gray('🔍 Marking migration applied with version:'), chalk.gray(version));
       }
       await this.client.insert({
         table: `default.__clicksuite_migrations`,
@@ -146,7 +146,7 @@ export class Db {
 
       await this.optimizeMigrationTable();
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to mark migration as applied:'), error);
+      console.error(chalk.bold.red('❌ Failed to mark migration as applied:'), error);
       throw error;
     }
   }
@@ -154,7 +154,7 @@ export class Db {
   async markMigrationRolledBack(version: string) {
     try {
       if (this.context.verbose) {
-        console.log(chalk.gray('Marking migration rolled back for version:'), chalk.gray(version));
+        console.log(chalk.gray('🔍 Marking migration rolled back for version:'), chalk.gray(version));
       }
       await this.client.insert({
         table: `default.__clicksuite_migrations`,
@@ -167,31 +167,31 @@ export class Db {
 
       await this.optimizeMigrationTable();
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to mark migration as rolled back:'), error);
+      console.error(chalk.bold.red('❌ Failed to mark migration as rolled back:'), error);
       throw error;
     }
   }
 
   async getDatabaseSchema(): Promise<Record<string, string>> {
-    console.warn('getDatabaseSchema needs full implementation based on Houseplant\'s update_schema logic.');
+    console.warn(chalk.yellow('⚠️ getDatabaseSchema needs full implementation based on Houseplant\'s update_schema logic.'));
     const schema: Record<string, string> = {};
     const tables = await this.getDatabaseTables();
     for (const table of tables) {
         try {
             schema[`table/${table.name}`] = await this.getCreateTableQuery(table.name, 'TABLE');
-        } catch (e) { console.warn(`Could not get CREATE TABLE for ${table.name}`, e); }
+        } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE TABLE for ${table.name}`), e); }
     }
     const views = await this.getDatabaseMaterializedViews();
     for (const view of views) {
         try {
             schema[`view/${view.name}`] = await this.getCreateTableQuery(view.name, 'VIEW');
-        } catch (e) { console.warn(`Could not get CREATE VIEW for ${view.name}`, e); }
+        } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE VIEW for ${view.name}`), e); }
     }
     const dictionaries = await this.getDatabaseDictionaries();
     for (const dict of dictionaries) {
         try {
             schema[`dictionary/${dict.name}`] = await this.getCreateTableQuery(dict.name, 'DICTIONARY');
-        } catch (e) { console.warn(`Could not get CREATE DICTIONARY for ${dict.name}`, e); }
+        } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE DICTIONARY for ${dict.name}`), e); }
     }
     return schema;
   }
@@ -211,7 +211,7 @@ export class Db {
       });
       return await resultSet.json() as {name: string}[];
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to get database tables:'), error);
+      console.error(chalk.bold.red('❌ Failed to get database tables:'), error);
       return [];
     }
   }
@@ -224,7 +224,7 @@ export class Db {
       });
       return await resultSet.json() as {name: string}[];
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to get materialized views:'), error);
+      console.error(chalk.bold.red('❌ Failed to get materialized views:'), error);
       return [];
     }
   }
@@ -237,7 +237,7 @@ export class Db {
       });
       return await resultSet.json() as {name: string}[];
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to get dictionaries:'), error);
+      console.error(chalk.bold.red('❌ Failed to get dictionaries:'), error);
       return [];
     }
   }
@@ -250,7 +250,7 @@ export class Db {
       });
       return await resultSet.json() as {name: string}[];
     } catch (error) {
-      console.error(chalk.bold.red(`⚠️ Failed to get tables for database ${database}:`), error);
+      console.error(chalk.bold.red(`❌ Failed to get tables for database ${database}:`), error);
       return [];
     }
   }
@@ -263,7 +263,7 @@ export class Db {
       });
       return await resultSet.json() as {name: string}[];
     } catch (error) {
-      console.error(chalk.bold.red(`⚠️ Failed to get materialized views for database ${database}:`), error);
+      console.error(chalk.bold.red(`❌ Failed to get materialized views for database ${database}:`), error);
       return [];
     }
   }
@@ -276,7 +276,7 @@ export class Db {
       });
       return await resultSet.json() as {name: string}[];
     } catch (error) {
-      console.error(chalk.bold.red(`⚠️ Failed to get dictionaries for database ${database}:`), error);
+      console.error(chalk.bold.red(`❌ Failed to get dictionaries for database ${database}:`), error);
       return [];
     }
   }
@@ -289,20 +289,33 @@ export class Db {
       const resultText = await resultSet.text();
       return resultText.trim();
     } catch (error) {
-      console.error(chalk.bold.red(`⚠️ Failed to get create query for ${type} ${name}:`), error);
+      console.error(chalk.bold.red(`❌ Failed to get create query for ${type} ${name}:`), error);
       throw error;
     }
   }
 
   async getCreateTableQueryForDb(name: string, database: string, type: 'TABLE' | 'VIEW' | 'DICTIONARY'): Promise<string> {
     try {
-      const objectType = type === 'VIEW' ? 'MATERIALIZED VIEW' : type;
+      // For materialized views, we need to use SHOW CREATE TABLE, not SHOW CREATE MATERIALIZED VIEW
+      const objectType = type === 'VIEW' ? 'TABLE' : type;
       const showQuery = `SHOW CREATE ${objectType} ${database}.${name}`;
+      if (this.context.verbose) {
+        console.log(chalk.gray(`🔍  Executing schema query: ${showQuery}`));
+      }
       const resultSet = await this.client.query({ query: showQuery, format: 'TabSeparated' });
       const resultText = await resultSet.text();
-      return resultText.trim();
+      
+      // Clean up the result text by replacing literal \n with actual newlines and unescaping quotes
+      const cleanedText = resultText
+        .trim()
+        .replace(/\\n/g, '\n')           // Replace literal \n with actual newlines
+        .replace(/\\'/g, "'")           // Unescape single quotes
+        .replace(/\\"/g, '"')           // Unescape double quotes
+        .replace(/\\\\/g, '\\');        // Unescape backslashes
+      
+      return cleanedText;
     } catch (error) {
-      console.error(chalk.bold.red(`⚠️ Failed to get create query for ${type} ${database}.${name}:`), error);
+      console.error(chalk.bold.red(`❌  Failed to get create query for ${type} ${database}.${name}:`), error);
       throw error;
     }
   }
@@ -316,7 +329,7 @@ export class Db {
         },
       });
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to optimize migration table:'), error);
+      console.error(chalk.bold.red('❌ Failed to optimize migration table:'), error);
       throw error;
     }
   }
@@ -330,7 +343,7 @@ export class Db {
       const clusterClause = this.context.cluster ? `ON CLUSTER ${this.context.cluster}` : '';
       const query = `TRUNCATE TABLE IF EXISTS default.__clicksuite_migrations ${clusterClause}`;
       if (this.context.verbose) {
-        console.log(chalk.gray('Clearing migrations table:'), chalk.gray(query));
+        console.log(chalk.gray('🔍 Clearing migrations table:'), chalk.gray(query));
       }
       await this.client.command({
         query: query,
@@ -338,9 +351,9 @@ export class Db {
           wait_end_of_query: 1,
         },
       });
-      console.log(chalk.green('Successfully cleared __clicksuite_migrations table.'));
+      console.log(chalk.green('✅ Successfully cleared __clicksuite_migrations table.'));
     } catch (error) {
-      console.error(chalk.bold.red('⚠️ Failed to clear __clicksuite_migrations table:'), error);
+      console.error(chalk.bold.red('❌ Failed to clear __clicksuite_migrations table:'), error);
       throw error;
     }
   }

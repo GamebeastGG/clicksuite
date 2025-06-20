@@ -1,6 +1,6 @@
 {
   "name": "clicksuite",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -24,7 +24,7 @@
     "migration-tool"
   ],
   "author": "Gamebeast <info@gamebeast.gg>",
-  "license": "ISC",
+  "license": "MIT",
   "description": "A CLI tool for managing ClickHouse database migrations with environment-specific configurations",
   "repository": {
     "type": "git",

@@ -194,6 +194,7 @@ describe('Index (CLI)', () => {
       
       expect(() => getContext({})).toThrow('Invalid CLICKHOUSE_URL format');
     });
+
   });
 
   describe('CLI Commands', () => {
