@@ -178,6 +178,22 @@ describe('Db', () => {
       });
       expect(result).toEqual(mockRecords);
     });
+
+    it('should return empty array and log error on failure', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const error = new Error('Database connection failed');
+      mockClient.query.mockRejectedValue(error);
+
+      const result = await db.getAllMigrationRecords();
+
+      expect(result).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Failed to get all migration records:'),
+        error
+      );
+      
+      consoleSpy.mockRestore();
+    });
   });
 
   describe('executeMigration', () => {
@@ -381,6 +397,13 @@ describe('Db', () => {
         }
       });
     });
+
+    it('should handle rollback marking errors', async () => {
+      const error = new Error('Rollback failed');
+      mockClient.insert.mockRejectedValue(error);
+
+      await expect(db.markMigrationRolledBack('20240101120000')).rejects.toThrow('Rollback failed');
+    });
   });
 
   describe('getLatestMigration', () => {
@@ -435,6 +458,74 @@ describe('Db', () => {
       const result = await db.getDatabaseTables();
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('getDatabaseMaterializedViews', () => {
+    it('should return list of materialized views', async () => {
+      const mockViews = [{ name: 'user_stats_mv' }, { name: 'order_stats_mv' }];
+      const mockResultSet = {
+        json: jest.fn().mockResolvedValue(mockViews)
+      };
+      mockClient.query.mockResolvedValue(mockResultSet);
+
+      const result = await db.getDatabaseMaterializedViews();
+
+      expect(mockClient.query).toHaveBeenCalledWith({
+        query: "SELECT name FROM system.tables WHERE database = 'test_db' AND engine = 'MaterializedView'",
+        format: 'JSONEachRow'
+      });
+      expect(result).toEqual(mockViews);
+    });
+
+    it('should return empty array on error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const error = new Error('Materialized views query failed');
+      mockClient.query.mockRejectedValue(error);
+
+      const result = await db.getDatabaseMaterializedViews();
+
+      expect(result).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Failed to get materialized views:'),
+        error
+      );
+      
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('getDatabaseDictionaries', () => {
+    it('should return list of dictionaries', async () => {
+      const mockDictionaries = [{ name: 'countries_dict' }, { name: 'languages_dict' }];
+      const mockResultSet = {
+        json: jest.fn().mockResolvedValue(mockDictionaries)
+      };
+      mockClient.query.mockResolvedValue(mockResultSet);
+
+      const result = await db.getDatabaseDictionaries();
+
+      expect(mockClient.query).toHaveBeenCalledWith({
+        query: "SELECT name FROM system.dictionaries WHERE database = 'test_db'",
+        format: 'JSONEachRow'
+      });
+      expect(result).toEqual(mockDictionaries);
+    });
+
+    it('should return empty array on error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const error = new Error('Dictionaries query failed');
+      mockClient.query.mockRejectedValue(error);
+
+      const result = await db.getDatabaseDictionaries();
+
+      expect(result).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Failed to get dictionaries:'),
+        error
+      );
+      
+      consoleSpy.mockRestore();
     });
   });
 
@@ -681,6 +772,101 @@ describe('Db', () => {
         expect.stringContaining('Clearing migrations table:'),
         expect.any(String)
       );
+    });
+  });
+
+  describe('getDatabaseSchema', () => {
+    it('should show warning about full implementation needed', async () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      
+      // Mock empty results to focus on the warning message
+      mockClient.query.mockResolvedValue({ json: jest.fn().mockResolvedValue([]) });
+
+      const result = await db.getDatabaseSchema();
+
+      // Should show warning about needing full implementation
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('⚠️ getDatabaseSchema needs full implementation')
+      );
+      
+      expect(result).toEqual({});
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle errors when getting CREATE statements for tables', async () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      
+      // Mock with one table that will fail
+      const mockTables = [{ name: 'bad_table' }];
+      const mockTablesResultSet = { json: jest.fn().mockResolvedValue(mockTables) };
+      
+      mockClient.query
+        .mockResolvedValueOnce(mockTablesResultSet)     // getDatabaseTables succeeds
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseMaterializedViews
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseDictionaries
+        .mockRejectedValueOnce(new Error('CREATE TABLE failed'));  // getCreateTableQuery fails
+
+      const result = await db.getDatabaseSchema();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('⚠️ Could not get CREATE TABLE for bad_table'),
+        expect.any(Error)
+      );
+      
+      expect(result).toEqual({});
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle errors when getting CREATE statements for views', async () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      
+      // Mock with one view that will fail
+      const mockViews = [{ name: 'bad_view' }];
+      const mockViewsResultSet = { json: jest.fn().mockResolvedValue(mockViews) };
+      
+      mockClient.query
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseTables
+        .mockResolvedValueOnce(mockViewsResultSet)     // getDatabaseMaterializedViews succeeds
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseDictionaries
+        .mockRejectedValueOnce(new Error('CREATE VIEW failed'));  // getCreateTableQuery fails
+
+      const result = await db.getDatabaseSchema();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('⚠️ Could not get CREATE VIEW for bad_view'),
+        expect.any(Error)
+      );
+      
+      expect(result).toEqual({});
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle errors when getting CREATE statements for dictionaries', async () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      
+      // Mock with one dictionary that will fail
+      const mockDictionaries = [{ name: 'bad_dict' }];
+      const mockDictionariesResultSet = { json: jest.fn().mockResolvedValue(mockDictionaries) };
+      
+      mockClient.query
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseTables
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseMaterializedViews
+        .mockResolvedValueOnce(mockDictionariesResultSet)     // getDatabaseDictionaries succeeds
+        .mockRejectedValueOnce(new Error('CREATE DICTIONARY failed'));  // getCreateTableQuery fails
+
+      const result = await db.getDatabaseSchema();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('⚠️ Could not get CREATE DICTIONARY for bad_dict'),
+        expect.any(Error)
+      );
+      
+      expect(result).toEqual({});
+      
+      consoleSpy.mockRestore();
     });
   });
 

@@ -624,15 +624,15 @@ yargs(hideBin(process.argv))
 <span class="fstat-no" title="function not covered" >    async </span>(argv) =&gt; {
       const context = <span class="cstat-no" title="statement not covered" >getContext(argv);</span>
 <span class="cstat-no" title="statement not covered" >      try {</span>
-<span class="cstat-no" title="statement not covered" >        console.log(chalk.blue(`Clicksuite base configuration directory: ${path.resolve(process.env.CLICKSUITE_MIGRATIONS_DIR || '.')}`));</span>
-<span class="cstat-no" title="statement not covered" >        console.log(chalk.blue(`Ensuring actual migrations (.yml files) directory exists at: ${context.migrationsDir}`));</span>
+<span class="cstat-no" title="statement not covered" >        console.log(chalk.blue(`ℹ️ Clicksuite base configuration directory: ${path.resolve(process.env.CLICKSUITE_MIGRATIONS_DIR || '.')}`));</span>
+<span class="cstat-no" title="statement not covered" >        console.log(chalk.blue(`⏳ Ensuring actual migrations (.yml files) directory exists at: ${context.migrationsDir}`));</span>
 <span class="cstat-no" title="statement not covered" >        await fs.mkdir(context.migrationsDir, { recursive: true });</span>
-<span class="cstat-no" title="statement not covered" >        console.log(chalk.green(`Migrations directory for .yml files is ready at: ${context.migrationsDir}`));</span>
+<span class="cstat-no" title="statement not covered" >        console.log(chalk.green(`✅ Migrations directory for .yml files is ready at: ${context.migrationsDir}`));</span>
         
         const runner = <span class="cstat-no" title="statement not covered" >new Runner(context);</span>
 <span class="cstat-no" title="statement not covered" >        await runner.init(); </span>// Runner's init handles DB table creation and connection test
       } catch (error: any) {
-<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('⚠️ Initialization failed:'), error.message);</span>
+<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('❌ Initialization failed:'), error.message);</span>
 <span class="cstat-no" title="statement not covered" >        if (error.stack &amp;&amp; !context.nonInteractive) <span class="cstat-no" title="statement not covered" >console.error(chalk.gray(error.stack));</span></span>
 <span class="cstat-no" title="statement not covered" >        process.exit(1);</span>
       }
@@ -654,7 +654,7 @@ yargs(hideBin(process.argv))
 <span class="cstat-no" title="statement not covered" >      try {</span>
 <span class="cstat-no" title="statement not covered" >        await runner.generate(argv.name as string);</span>
       } catch (error: any) {
-<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('⚠️ Migration generation failed:'), error.message);</span>
+<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('❌ Migration generation failed:'), error.message);</span>
 <span class="cstat-no" title="statement not covered" >        if (error.stack &amp;&amp; !context.nonInteractive) <span class="cstat-no" title="statement not covered" >console.error(chalk.gray(error.stack));</span></span>
 <span class="cstat-no" title="statement not covered" >        process.exit(1);</span>
       }
@@ -669,7 +669,7 @@ yargs(hideBin(process.argv))
 <span class="cstat-no" title="statement not covered" >      try {</span>
 <span class="cstat-no" title="statement not covered" >        await runner.status();</span>
       } catch (error: any) {
-<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('⚠️ Failed to get migration status:'), error.message);</span>
+<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('❌ Failed to get migration status:'), error.message);</span>
 <span class="cstat-no" title="statement not covered" >        if (error.stack &amp;&amp; !context.nonInteractive) <span class="cstat-no" title="statement not covered" >console.error(chalk.gray(error.stack));</span></span>
 <span class="cstat-no" title="statement not covered" >        process.exit(1);</span>
       }
@@ -684,7 +684,7 @@ yargs(hideBin(process.argv))
 <span class="cstat-no" title="statement not covered" >      try {</span>
 <span class="cstat-no" title="statement not covered" >        await runner.migrate();</span>
       } catch (error: any) {
-<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('⚠️ Migration run failed:'), error.message);</span>
+<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('❌ Migration run failed:'), error.message);</span>
 <span class="cstat-no" title="statement not covered" >        if (error.stack &amp;&amp; !context.nonInteractive) <span class="cstat-no" title="statement not covered" >console.error(chalk.gray(error.stack));</span></span>
 <span class="cstat-no" title="statement not covered" >        process.exit(1);</span>
       }
@@ -711,7 +711,7 @@ yargs(hideBin(process.argv))
 <span class="cstat-no" title="statement not covered" >      try {</span>
 <span class="cstat-no" title="statement not covered" >        await runner.up(argv.migrationVersion as string | undefined);</span>
       } catch (error: any) {
-<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('⚠️ Migrate UP failed:'), error.message);</span>
+<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('❌ Migrate UP failed:'), error.message);</span>
 <span class="cstat-no" title="statement not covered" >        if (error.stack &amp;&amp; !context.nonInteractive) <span class="cstat-no" title="statement not covered" >console.error(chalk.gray(error.stack));</span></span>
 <span class="cstat-no" title="statement not covered" >        process.exit(1);</span>
       }
@@ -738,7 +738,7 @@ yargs(hideBin(process.argv))
 <span class="cstat-no" title="statement not covered" >      try {</span>
 <span class="cstat-no" title="statement not covered" >        await runner.down(argv.migrationVersion as string | undefined);</span>
       } catch (error: any) {
-<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('⚠️ Migrate DOWN failed:'), error.message);</span>
+<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('❌ Migrate DOWN failed:'), error.message);</span>
 <span class="cstat-no" title="statement not covered" >        if (error.stack &amp;&amp; !context.nonInteractive) <span class="cstat-no" title="statement not covered" >console.error(chalk.gray(error.stack));</span></span>
 <span class="cstat-no" title="statement not covered" >        process.exit(1);</span>
       }
@@ -753,7 +753,7 @@ yargs(hideBin(process.argv))
 <span class="cstat-no" title="statement not covered" >      try {</span>
 <span class="cstat-no" title="statement not covered" >        await runner.reset();</span>
       } catch (error: any) {
-<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('⚠️ Migration reset failed:'), error.message);</span>
+<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('❌ Migration reset failed:'), error.message);</span>
 <span class="cstat-no" title="statement not covered" >        if (error.stack &amp;&amp; !context.nonInteractive) <span class="cstat-no" title="statement not covered" >console.error(chalk.gray(error.stack));</span></span>
 <span class="cstat-no" title="statement not covered" >        process.exit(1);</span>
       }
@@ -768,23 +768,23 @@ yargs(hideBin(process.argv))
 <span class="cstat-no" title="statement not covered" >      try {</span>
 <span class="cstat-no" title="statement not covered" >        await runner.schemaLoad();</span>
       } catch (error: any) {
-<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('⚠️ Schema loading failed:'), error.message);</span>
+<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('❌ Schema loading failed:'), error.message);</span>
 <span class="cstat-no" title="statement not covered" >        if (error.stack &amp;&amp; !context.nonInteractive) <span class="cstat-no" title="statement not covered" >console.error(chalk.gray(error.stack));</span></span>
 <span class="cstat-no" title="statement not covered" >        process.exit(1);</span>
       }
     }
   )
   .strict()
-  .demandCommand(1, chalk.yellow('Please specify a command. Use --help for available commands.'))
+  .demandCommand(1, chalk.yellow('⚠️ Please specify a command. Use --help for available commands.'))
   .alias('h', 'help')
   .alias('v', 'version')
   .epilogue(chalk.gray('For more information, find the documentation at https://github.com/GamebeastGG/clicksuite'))
   .fail(<span class="fstat-no" title="function not covered" >(m</span>sg, err, yargsInstance) =&gt; {
 <span class="cstat-no" title="statement not covered" >    if (err &amp;&amp; err.message &amp;&amp; !err.message.startsWith('⚠️')) {</span>
-<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('Error:'), err.message);</span>
+<span class="cstat-no" title="statement not covered" >        console.error(chalk.bold.red('❌ Error:'), err.message);</span>
 <span class="cstat-no" title="statement not covered" >        if (err.stack &amp;&amp; !getContext({}).nonInteractive) <span class="cstat-no" title="statement not covered" >console.error(chalk.gray(err.stack)); </span></span>
     } else <span class="cstat-no" title="statement not covered" >if (msg &amp;&amp; !err) {</span>
-<span class="cstat-no" title="statement not covered" >      console.error(chalk.red(msg));</span>
+<span class="cstat-no" title="statement not covered" >      console.error(chalk.red(`❌ ${msg}`));</span>
 <span class="cstat-no" title="statement not covered" >      yargsInstance.showHelp();</span>
     }
 <span class="cstat-no" title="statement not covered" >    process.exit(1);</span>
@@ -796,7 +796,7 @@ yargs(hideBin(process.argv))
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-06-18T21:47:28.334Z
+                at 2025-06-20T18:12:26.317Z
             </div>
         <script src="prettify.js"></script>
         <script>

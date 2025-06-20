@@ -1368,4 +1368,168 @@ describe('Runner', () => {
       expect(runner['_updateSchemaFile']).not.toHaveBeenCalled();
     });
   });
+
+  describe('environment variable interpolation', () => {
+    let originalEnv: NodeJS.ProcessEnv;
+    let consoleWarnSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      originalEnv = { ...process.env };
+      consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should warn and return empty string for undefined environment variables', async () => {
+      delete process.env.UNDEFINED_VAR;
+
+      // Mock file system and YAML parsing to simulate real file loading
+      mockFs.readdir.mockResolvedValue(['20240101120000_create_users.yml'] as any);
+      mockFs.readFile.mockResolvedValue('test:\n  up: "CREATE TABLE ${UNDEFINED_VAR}_users"');
+      mockYaml.load.mockReturnValue({
+        test: {
+          up: 'CREATE TABLE ${UNDEFINED_VAR}_users'
+        }
+      });
+
+      mockDb.getAppliedMigrations.mockResolvedValue([]);
+      mockDb.executeMigration.mockResolvedValue(undefined);
+      mockDb.markMigrationApplied.mockResolvedValue(undefined);
+      jest.spyOn(runner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      await runner.up();
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("⚠️  Warning: Environment variable 'UNDEFINED_VAR' is not set. Using empty string.")
+      );
+      expect(mockDb.executeMigration).toHaveBeenCalledWith('CREATE TABLE _users', {});
+    });
+
+    it('should use environment variable value when defined', async () => {
+      process.env.TEST_PREFIX = 'prod';
+
+      // Mock file system and YAML parsing to simulate real file loading
+      mockFs.readdir.mockResolvedValue(['20240101120000_create_users.yml'] as any);
+      mockFs.readFile.mockResolvedValue('test:\n  up: "CREATE TABLE ${TEST_PREFIX}_users"');
+      mockYaml.load.mockReturnValue({
+        test: {
+          up: 'CREATE TABLE ${TEST_PREFIX}_users'
+        }
+      });
+
+      mockDb.getAppliedMigrations.mockResolvedValue([]);
+      mockDb.executeMigration.mockResolvedValue(undefined);
+      mockDb.markMigrationApplied.mockResolvedValue(undefined);
+      jest.spyOn(runner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      await runner.up();
+
+      expect(mockDb.executeMigration).toHaveBeenCalledWith('CREATE TABLE prod_users', {});
+    });
+  });
+
+  describe('formatSQL edge cases', () => {
+    it('should handle migrations with empty or undefined SQL', async () => {
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'empty_migration',
+          filePath: '/tmp/migrations/test.yml',
+          upSQL: undefined,
+          table: 'users',
+          database: 'test_db'
+        },
+        {
+          version: '20240102120000',
+          name: 'null_migration',
+          filePath: '/tmp/migrations/test2.yml',
+          upSQL: null,
+          table: 'posts',
+          database: 'test_db'
+        }
+      ];
+
+      jest.spyOn(runner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue([]);
+      jest.spyOn(runner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      await runner.up();
+
+      // Should skip both migrations due to no upSQL
+      expect(mockDb.executeMigration).not.toHaveBeenCalled();
+      expect(mockDb.markMigrationApplied).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('rollback error scenarios', () => {
+    let consoleErrorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    });
+
+    afterEach(() => {
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should handle target version not currently applied', async () => {
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml',
+          downSQL: 'DROP TABLE users'
+        },
+        {
+          version: '20240102120000',
+          name: 'add_index',
+          filePath: '/tmp/migrations/test2.yml',
+          downSQL: 'DROP INDEX idx_users'
+        }
+      ];
+
+      const mockAppliedMigrations = [
+        { version: '20240101120000', active: 1, created_at: '2024-01-01T12:00:00Z' }
+      ];
+
+      jest.spyOn(runner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue(mockAppliedMigrations);
+
+      await runner.down('20240102120000');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Target version 20240102120000 is not currently applied')
+      );
+    });
+
+    it('should handle target version not existing locally', async () => {
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml',
+          downSQL: 'DROP TABLE users'
+        }
+      ];
+
+      const mockAppliedMigrations = [
+        { version: '20240101120000', active: 1, created_at: '2024-01-01T12:00:00Z' }
+      ];
+
+      jest.spyOn(runner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue(mockAppliedMigrations);
+
+      await runner.down('20240999999999');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Target version 20240999999999 is not currently applied')
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Additionally, version 20240999999999 does not exist in local migration files')
+      );
+    });
+  });
 });
