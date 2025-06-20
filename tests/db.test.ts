@@ -136,15 +136,14 @@ describe('Db', () => {
       ];
 
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue(mockMigrations)
+        json: jest.fn().mockResolvedValue({ data: mockMigrations })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getAppliedMigrations();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SELECT version, active, created_at FROM default.__clicksuite_migrations WHERE active = 1 ORDER BY version ASC',
-        format: 'JSONEachRow'
+        query: 'SELECT version, active, created_at FROM default.__clicksuite_migrations WHERE active = 1 ORDER BY version ASC'
       });
       expect(result).toEqual(mockMigrations);
     });
@@ -166,15 +165,14 @@ describe('Db', () => {
       ];
 
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue(mockRecords)
+        json: jest.fn().mockResolvedValue({ data: mockRecords })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getAllMigrationRecords();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SELECT version, active, created_at FROM default.__clicksuite_migrations ORDER BY version ASC',
-        format: 'JSONEachRow'
+        query: 'SELECT version, active, created_at FROM default.__clicksuite_migrations ORDER BY version ASC'
       });
       expect(result).toEqual(mockRecords);
     });
@@ -414,7 +412,7 @@ describe('Db', () => {
       ];
 
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue(mockMigrations)
+        json: jest.fn().mockResolvedValue({ data: mockMigrations })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
@@ -425,7 +423,7 @@ describe('Db', () => {
 
     it('should return undefined when no migrations exist', async () => {
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue([])
+        json: jest.fn().mockResolvedValue({ data: [] })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
@@ -439,15 +437,14 @@ describe('Db', () => {
     it('should return list of tables', async () => {
       const mockTables = [{ name: 'users' }, { name: 'orders' }];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue(mockTables)
+        json: jest.fn().mockResolvedValue({ data: mockTables })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getDatabaseTables();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.tables WHERE database = 'test_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'",
-        format: 'JSONEachRow'
+        query: "SELECT name FROM system.tables WHERE database = 'test_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'"
       });
       expect(result).toEqual(mockTables);
     });
@@ -465,15 +462,14 @@ describe('Db', () => {
     it('should return list of materialized views', async () => {
       const mockViews = [{ name: 'user_stats_mv' }, { name: 'order_stats_mv' }];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue(mockViews)
+        json: jest.fn().mockResolvedValue({ data: mockViews })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getDatabaseMaterializedViews();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.tables WHERE database = 'test_db' AND engine = 'MaterializedView'",
-        format: 'JSONEachRow'
+        query: "SELECT name FROM system.tables WHERE database = 'test_db' AND engine = 'MaterializedView'"
       });
       expect(result).toEqual(mockViews);
     });
@@ -499,15 +495,14 @@ describe('Db', () => {
     it('should return list of dictionaries', async () => {
       const mockDictionaries = [{ name: 'countries_dict' }, { name: 'languages_dict' }];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue(mockDictionaries)
+        json: jest.fn().mockResolvedValue({ data: mockDictionaries })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getDatabaseDictionaries();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.dictionaries WHERE database = 'test_db'",
-        format: 'JSONEachRow'
+        query: "SELECT name FROM system.dictionaries WHERE database = 'test_db'"
       });
       expect(result).toEqual(mockDictionaries);
     });
@@ -780,7 +775,7 @@ describe('Db', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       
       // Mock empty results to focus on the warning message
-      mockClient.query.mockResolvedValue({ json: jest.fn().mockResolvedValue([]) });
+      mockClient.query.mockResolvedValue({ json: jest.fn().mockResolvedValue({ data: [] }) });
 
       const result = await db.getDatabaseSchema();
 
@@ -799,12 +794,12 @@ describe('Db', () => {
       
       // Mock with one table that will fail
       const mockTables = [{ name: 'bad_table' }];
-      const mockTablesResultSet = { json: jest.fn().mockResolvedValue(mockTables) };
+      const mockTablesResultSet = { json: jest.fn().mockResolvedValue({ data: mockTables }) };
       
       mockClient.query
         .mockResolvedValueOnce(mockTablesResultSet)     // getDatabaseTables succeeds
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseMaterializedViews
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseDictionaries
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseMaterializedViews
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseDictionaries
         .mockRejectedValueOnce(new Error('CREATE TABLE failed'));  // getCreateTableQuery fails
 
       const result = await db.getDatabaseSchema();
@@ -824,12 +819,12 @@ describe('Db', () => {
       
       // Mock with one view that will fail
       const mockViews = [{ name: 'bad_view' }];
-      const mockViewsResultSet = { json: jest.fn().mockResolvedValue(mockViews) };
+      const mockViewsResultSet = { json: jest.fn().mockResolvedValue({ data: mockViews }) };
       
       mockClient.query
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseTables
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseTables
         .mockResolvedValueOnce(mockViewsResultSet)     // getDatabaseMaterializedViews succeeds
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseDictionaries
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseDictionaries
         .mockRejectedValueOnce(new Error('CREATE VIEW failed'));  // getCreateTableQuery fails
 
       const result = await db.getDatabaseSchema();
@@ -849,11 +844,11 @@ describe('Db', () => {
       
       // Mock with one dictionary that will fail
       const mockDictionaries = [{ name: 'bad_dict' }];
-      const mockDictionariesResultSet = { json: jest.fn().mockResolvedValue(mockDictionaries) };
+      const mockDictionariesResultSet = { json: jest.fn().mockResolvedValue({ data: mockDictionaries }) };
       
       mockClient.query
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseTables
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue([]) })  // getDatabaseMaterializedViews
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseTables
+        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseMaterializedViews
         .mockResolvedValueOnce(mockDictionariesResultSet)     // getDatabaseDictionaries succeeds
         .mockRejectedValueOnce(new Error('CREATE DICTIONARY failed'));  // getCreateTableQuery fails
 
@@ -874,15 +869,14 @@ describe('Db', () => {
     it('should return list of tables for specific database', async () => {
       const mockTables = [{ name: 'users' }, { name: 'orders' }];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue(mockTables)
+        json: jest.fn().mockResolvedValue({ data: mockTables })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getDatabaseTablesForDb('custom_db');
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'",
-        format: 'JSONEachRow'
+        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'"
       });
       expect(result).toEqual(mockTables);
     });
@@ -900,15 +894,14 @@ describe('Db', () => {
     it('should return list of materialized views for specific database', async () => {
       const mockViews = [{ name: 'user_stats_mv' }, { name: 'order_stats_mv' }];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue(mockViews)
+        json: jest.fn().mockResolvedValue({ data: mockViews })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getDatabaseMaterializedViewsForDb('custom_db');
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine = 'MaterializedView'",
-        format: 'JSONEachRow'
+        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine = 'MaterializedView'"
       });
       expect(result).toEqual(mockViews);
     });
@@ -934,15 +927,14 @@ describe('Db', () => {
     it('should return list of dictionaries for specific database', async () => {
       const mockDictionaries = [{ name: 'countries_dict' }, { name: 'languages_dict' }];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue(mockDictionaries)
+        json: jest.fn().mockResolvedValue({ data: mockDictionaries })
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getDatabaseDictionariesForDb('custom_db');
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.dictionaries WHERE database = 'custom_db'",
-        format: 'JSONEachRow'
+        query: "SELECT name FROM system.dictionaries WHERE database = 'custom_db'"
       });
       expect(result).toEqual(mockDictionaries);
     });
