@@ -24,7 +24,7 @@
     "migration-tool"
   ],
   "author": "Gamebeast <info@gamebeast.gg>",
-  "license": "ISC",
+  "license": "MIT",
   "description": "A CLI tool for managing ClickHouse database migrations with environment-specific configurations",
   "repository": {
     "type": "git",

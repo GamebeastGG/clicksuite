@@ -75,15 +75,15 @@ yargs(hideBin(process.argv))
     async (argv) => {
       const context = getContext(argv);
       try {
-        console.log(chalk.blue(`Clicksuite base configuration directory: ${path.resolve(process.env.CLICKSUITE_MIGRATIONS_DIR || '.')}`));
-        console.log(chalk.blue(`Ensuring actual migrations (.yml files) directory exists at: ${context.migrationsDir}`));
+        console.log(chalk.blue(`ℹ️ Clicksuite base configuration directory: ${path.resolve(process.env.CLICKSUITE_MIGRATIONS_DIR || '.')}`));
+        console.log(chalk.blue(`⏳ Ensuring actual migrations (.yml files) directory exists at: ${context.migrationsDir}`));
         await fs.mkdir(context.migrationsDir, { recursive: true });
-        console.log(chalk.green(`Migrations directory for .yml files is ready at: ${context.migrationsDir}`));
+        console.log(chalk.green(`✅ Migrations directory for .yml files is ready at: ${context.migrationsDir}`));
         
         const runner = new Runner(context);
         await runner.init(); // Runner's init handles DB table creation and connection test
       } catch (error: any) {
-        console.error(chalk.bold.red('⚠️ Initialization failed:'), error.message);
+        console.error(chalk.bold.red('❌ Initialization failed:'), error.message);
         if (error.stack && !context.nonInteractive) console.error(chalk.gray(error.stack));
         process.exit(1);
       }
@@ -105,7 +105,7 @@ yargs(hideBin(process.argv))
       try {
         await runner.generate(argv.name as string);
       } catch (error: any) {
-        console.error(chalk.bold.red('⚠️ Migration generation failed:'), error.message);
+        console.error(chalk.bold.red('❌ Migration generation failed:'), error.message);
         if (error.stack && !context.nonInteractive) console.error(chalk.gray(error.stack));
         process.exit(1);
       }
@@ -120,7 +120,7 @@ yargs(hideBin(process.argv))
       try {
         await runner.status();
       } catch (error: any) {
-        console.error(chalk.bold.red('⚠️ Failed to get migration status:'), error.message);
+        console.error(chalk.bold.red('❌ Failed to get migration status:'), error.message);
         if (error.stack && !context.nonInteractive) console.error(chalk.gray(error.stack));
         process.exit(1);
       }
@@ -135,7 +135,7 @@ yargs(hideBin(process.argv))
       try {
         await runner.migrate();
       } catch (error: any) {
-        console.error(chalk.bold.red('⚠️ Migration run failed:'), error.message);
+        console.error(chalk.bold.red('❌ Migration run failed:'), error.message);
         if (error.stack && !context.nonInteractive) console.error(chalk.gray(error.stack));
         process.exit(1);
       }
@@ -162,7 +162,7 @@ yargs(hideBin(process.argv))
       try {
         await runner.up(argv.migrationVersion as string | undefined);
       } catch (error: any) {
-        console.error(chalk.bold.red('⚠️ Migrate UP failed:'), error.message);
+        console.error(chalk.bold.red('❌ Migrate UP failed:'), error.message);
         if (error.stack && !context.nonInteractive) console.error(chalk.gray(error.stack));
         process.exit(1);
       }
@@ -189,7 +189,7 @@ yargs(hideBin(process.argv))
       try {
         await runner.down(argv.migrationVersion as string | undefined);
       } catch (error: any) {
-        console.error(chalk.bold.red('⚠️ Migrate DOWN failed:'), error.message);
+        console.error(chalk.bold.red('❌ Migrate DOWN failed:'), error.message);
         if (error.stack && !context.nonInteractive) console.error(chalk.gray(error.stack));
         process.exit(1);
       }
@@ -204,7 +204,7 @@ yargs(hideBin(process.argv))
       try {
         await runner.reset();
       } catch (error: any) {
-        console.error(chalk.bold.red('⚠️ Migration reset failed:'), error.message);
+        console.error(chalk.bold.red('❌ Migration reset failed:'), error.message);
         if (error.stack && !context.nonInteractive) console.error(chalk.gray(error.stack));
         process.exit(1);
       }
@@ -219,23 +219,23 @@ yargs(hideBin(process.argv))
       try {
         await runner.schemaLoad();
       } catch (error: any) {
-        console.error(chalk.bold.red('⚠️ Schema loading failed:'), error.message);
+        console.error(chalk.bold.red('❌ Schema loading failed:'), error.message);
         if (error.stack && !context.nonInteractive) console.error(chalk.gray(error.stack));
         process.exit(1);
       }
     }
   )
   .strict()
-  .demandCommand(1, chalk.yellow('Please specify a command. Use --help for available commands.'))
+  .demandCommand(1, chalk.yellow('⚠️ Please specify a command. Use --help for available commands.'))
   .alias('h', 'help')
   .alias('v', 'version')
   .epilogue(chalk.gray('For more information, find the documentation at https://github.com/GamebeastGG/clicksuite'))
   .fail((msg, err, yargsInstance) => {
     if (err && err.message && !err.message.startsWith('⚠️')) {
-        console.error(chalk.bold.red('Error:'), err.message);
+        console.error(chalk.bold.red('❌ Error:'), err.message);
         if (err.stack && !getContext({}).nonInteractive) console.error(chalk.gray(err.stack)); 
     } else if (msg && !err) {
-      console.error(chalk.red(msg));
+      console.error(chalk.red(`❌ ${msg}`));
       yargsInstance.showHelp();
     }
     process.exit(1);

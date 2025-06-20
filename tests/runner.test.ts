@@ -852,7 +852,7 @@ describe('Runner', () => {
     it('should show dry run skip message for migrations without downSQL', async () => {
       const dryRunContext = { ...context, dryRun: true };
       const dryRunRunner = new Runner(dryRunContext);
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       const mockLocalMigrations = [
         {
@@ -872,11 +872,11 @@ describe('Runner', () => {
 
       await dryRunRunner.down();
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('Would skip 20240101120000: No \'down\' SQL found for environment \'test\'.')
       );
       
-      consoleErrorSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
     });
 
     it('should show dry run message when no pending migrations', async () => {
