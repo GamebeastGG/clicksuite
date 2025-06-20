@@ -285,7 +285,7 @@ export class Db {
     try {
       const objectType = type === 'VIEW' ? 'MATERIALIZED VIEW' : type;
       const showQuery = `SHOW CREATE ${objectType} ${this.context.database}.${name}`;
-      const resultSet = await this.client.query({ query: showQuery, format: 'TabSeparated' });
+      const resultSet = await this.client.query({ query: showQuery });
       const resultText = await resultSet.text();
       return resultText.trim();
     } catch (error) {
@@ -302,7 +302,7 @@ export class Db {
       if (this.context.verbose) {
         console.log(chalk.gray(`🔍  Executing schema query: ${showQuery}`));
       }
-      const resultSet = await this.client.query({ query: showQuery, format: 'TabSeparated' });
+      const resultSet = await this.client.query({ query: showQuery });
       const resultText = await resultSet.text();
       
       // Clean up the result text by replacing literal \n with actual newlines and unescaping quotes
