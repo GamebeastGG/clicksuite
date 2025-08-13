@@ -10,6 +10,7 @@ export function getContext(argv: { [key: string]: any }): Context {
   const baseUserConfigDir = process.env.CLICKSUITE_MIGRATIONS_DIR || '.';
   const actualMigrationsDir = path.resolve(baseUserConfigDir, 'migrations');
   const environment = process.env.CLICKSUITE_ENVIRONMENT || 'development';
+  const migrationsDatabase = process.env.CLICKSUITE_MIGRATIONS_DATABASE || 'default';
 
   // Require CLICKHOUSE_URL
   if (!process.env.CLICKHOUSE_URL) {
@@ -43,5 +44,6 @@ export function getContext(argv: { [key: string]: any }): Context {
     environment: environment,
     dryRun: argv.dryRun !== undefined ? argv.dryRun as boolean : false,
     verbose: argv.verbose !== undefined ? argv.verbose as boolean : false,
+    migrationsDatabase: argv.migrationsDatabase !== undefined ? argv.migrationsDatabase as string : migrationsDatabase,
   };
 }
