@@ -19,12 +19,30 @@ export class Db {
   }
 
   async initMigrationsTable() {
-    try {
-      const clusterClause = this.context.cluster ? `ON CLUSTER ${this.context.cluster}` : '';
-      const tableEngine = this.context.cluster ? `ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/__clicksuite_migrations', '{replica}')` : 'ReplacingMergeTree()';
-      const migrationsDatabase = this.context.migrationsDatabase || 'default';
+    const clusterClause = this.context.cluster ? `ON CLUSTER ${this.context.cluster}` : '';
+    const tableEngine = this.context.cluster ? `ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/__clicksuite_migrations', '{replica}')` : 'ReplacingMergeTree()';
+    const migrationsDatabase = this.context.migrationsDatabase || 'default';
 
-      const query = `
+    // 1) Ensure the migrations database exists (when not default)
+    if (migrationsDatabase !== 'default') {
+      const createDbQuery = `CREATE DATABASE IF NOT EXISTS ${migrationsDatabase} ${clusterClause}`;
+      try {
+        if (this.context.verbose) {
+          console.log(chalk.gray('🔍 Ensuring migrations database exists:'), chalk.gray(createDbQuery.replace(/\n\s*/g, ' ').trim()));
+        }
+        await this.client.command({
+          query: createDbQuery,
+          clickhouse_settings: { wait_end_of_query: 1 },
+        });
+      } catch (error) {
+        console.error(chalk.bold.red(`❌ Failed to create migrations database '${migrationsDatabase}':`), error);
+        throw error;
+      }
+    }
+
+    // 2) Ensure the migrations table exists
+    try {
+      const createTableQuery = `
           CREATE TABLE IF NOT EXISTS ${migrationsDatabase}.__clicksuite_migrations ${clusterClause} (
             version LowCardinality(String),
             active UInt8 NOT NULL DEFAULT 1,
@@ -35,15 +53,15 @@ export class Db {
           ORDER BY (version)
         `;
       if (this.context.verbose) {
-        console.log(chalk.gray('🔍 Executing initMigrationsTable query:'), chalk.gray(query.replace(/\n\s*/g, ' ').trim()));
+        console.log(chalk.gray('🔍 Executing initMigrationsTable query:'), chalk.gray(createTableQuery.replace(/\n\s*/g, ' ').trim()));
       }
       await this.client.command({
-        query: query,
+        query: createTableQuery,
         clickhouse_settings: {
           wait_end_of_query: 1,
         },
       });
-      console.log(chalk.green('✅ Successfully ensured __clicksuite_migrations table exists in default database.'));
+      console.log(chalk.green(`✅ Successfully ensured __clicksuite_migrations table exists in ${migrationsDatabase} database.`));
     } catch (error) {
       console.error(chalk.bold.red('❌ Failed to create __clicksuite_migrations table:'), error);
       throw error;
