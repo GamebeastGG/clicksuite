@@ -19,8 +19,78 @@ on:
           - beta
           - alpha
           - next
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
+  canary:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # Required for NPM provenance
+      pull-requests: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Install dependencies
+    
+      run: npm ci
+
+    - name: Run tests
+      run: npm run test:ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Compute canary version
+      id: compute
+      run: |
+        BASE_VERSION=$(node -p "require('./package.json').version")
+        SHORT_SHA=${GITHUB_SHA::7}
+        CANARY_VERSION="${BASE_VERSION}-canary.${SHORT_SHA}"
+        echo "CANARY_VERSION=${CANARY_VERSION}" >> $GITHUB_ENV
+        echo "version=${CANARY_VERSION}" >> $GITHUB_OUTPUT
+
+    - name: Update package.json to canary version
+      run: npm version "$CANARY_VERSION" --no-git-tag-version
+
+    - name: Publish canary to NPM
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: npm publish --tag canary --provenance --access public
+
+    - name: Comment canary version on PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const version = process.env.CANARY_VERSION;
+          const shortSha = process.env.GITHUB_SHA.substring(0,7);
+          const { owner, repo } = context.repo;
+          const issue_number = context.payload.pull_request.number;
+          const body = `<!-- clicksuite-canary -->\n` +
+            `Published canary for ${context.payload.pull_request.head.ref} @ ${shortSha}:\n\n` +
+            `- Version: \`${version}\`\n` +
+            `- Install: \`npm install clicksuite@${version}\`\n` +
+            `- Dist-tag: \`canary\``;
+          const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+          const existing = comments.find(c => (c.user?.type === 'Bot' || c.user?.login === 'github-actions[bot]') && c.body?.includes('<!-- clicksuite-canary -->'));
+          if (existing) {
+            await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+          } else {
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+          }
+
   publish:
     runs-on: ubuntu-latest
     
