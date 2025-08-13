@@ -1,6 +1,9 @@
 name: Publish to NPM
 
 on:
+  push:
+    branches:
+      - main
   release:
     types: [published]
   workflow_dispatch:
@@ -20,7 +23,7 @@ on:
           - alpha
           - next
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize]
 
 jobs:
   canary:
@@ -55,17 +58,30 @@ jobs:
 
     - name: Compute canary version
       id: compute
+      env:
+        PR_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       run: |
         BASE_VERSION=$(node -p "require('./package.json').version")
-        SHORT_SHA=${GITHUB_SHA::7}
+        SHORT_SHA=${PR_SHA:0:7}
         CANARY_VERSION="${BASE_VERSION}-canary.${SHORT_SHA}"
         echo "CANARY_VERSION=${CANARY_VERSION}" >> $GITHUB_ENV
         echo "version=${CANARY_VERSION}" >> $GITHUB_OUTPUT
 
+    - name: Check if canary version exists
+      id: check
+      run: |
+        if npm view clicksuite@"$CANARY_VERSION" version >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Update package.json to canary version
+      if: steps.check.outputs.exists == 'false'
       run: npm version "$CANARY_VERSION" --no-git-tag-version
 
     - name: Publish canary to NPM
+      if: steps.check.outputs.exists == 'false'
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       run: npm publish --tag canary --provenance --access public
@@ -92,6 +108,7 @@ jobs:
           }
 
   publish:
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     
     permissions:
