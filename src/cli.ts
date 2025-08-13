@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import yargs from 'yargs';
+import yargs, { Argv } from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import dotenv from 'dotenv';
 import * as fs from 'fs/promises';
@@ -12,7 +12,8 @@ import { getContext } from './index';
 // Load environment variables from .env file for CLI usage
 dotenv.config();
 
-yargs(hideBin(process.argv))
+export function createCli(): Argv {
+  return yargs(hideBin(process.argv))
   .option('non-interactive', {
     alias: 'y',
     type: 'boolean',
@@ -197,7 +198,11 @@ yargs(hideBin(process.argv))
       yargsInstance.showHelp();
     }
     process.exit(1);
-  })
-  .parse();
+  });
+}
+
+if (require.main === module) {
+  createCli().parse();
+}
 
 
