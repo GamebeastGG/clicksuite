@@ -82,6 +82,9 @@ CLICKSUITE_MIGRATIONS_DIR=./db_migrations
 
 # Optional: Environment (defaults to 'development')
 CLICKSUITE_ENVIRONMENT=production
+
+# Optional: Custom database for the migrations table (defaults to 'default')
+CLICKSUITE_MIGRATIONS_DATABASE=default
 ```
 
 **Connection URL Examples:**
@@ -511,13 +514,6 @@ const context: Context = {
   environment: 'development',
   nonInteractive: false
 };
-
-// Or use the getContext helper function with environment variables
-import { getContext } from 'clicksuite';
-
-// Set CLICKHOUSE_URL environment variable first
-process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/my_database';
-const context = getContext({});
 
 // Run migrations programmatically
 const runner = new Runner(context);
