@@ -6,3 +6,4 @@
 dist/
 migrations/
 node_modules
+coverage/

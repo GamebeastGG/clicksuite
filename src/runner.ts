@@ -1,6 +1,7 @@
 import { Context, MigrationFile, MigrationRecord, MigrationStatus, MigrationState, RawMigrationFileContent } from './types';
 import { Db } from './db';
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
 import yaml from 'js-yaml';
@@ -51,6 +52,17 @@ export class Runner {
     if (!path.isAbsolute(this.context.migrationsDir)) {
       this.context.migrationsDir = path.resolve(process.cwd(), this.context.migrationsDir);
       console.warn(chalk.yellow(`⚠️  Runner: migrationsDir was not absolute, resolved to ${this.context.migrationsDir}. This should be resolved in index.ts.`));
+    }
+
+    // If a "migrations" subdirectory exists inside the provided directory,
+    // prefer it to mirror the CLI behavior.
+    try {
+      const migrationsSubdir = path.join(this.context.migrationsDir, 'migrations');
+      if (fsSync.existsSync(migrationsSubdir) && fsSync.statSync(migrationsSubdir).isDirectory()) {
+        this.context.migrationsDir = migrationsSubdir;
+      }
+    } catch (_) {
+      // noop: fall back to provided migrationsDir
     }
   }
 
