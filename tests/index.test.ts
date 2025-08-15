@@ -75,7 +75,6 @@ describe('Index (CLI)', () => {
 
       expect(context).toMatchObject({
         url: 'http://default@localhost:8123/default',
-        database: 'default',
         environment: 'development',
         nonInteractive: false
       });
@@ -92,7 +91,6 @@ describe('Index (CLI)', () => {
 
       expect(context).toMatchObject({
         url: 'https://prod_user:secret@prod.clickhouse.com:8443/prod_db',
-        database: 'prod_db',
         cluster: 'prod_cluster',
         environment: 'production'
       });
@@ -154,7 +152,6 @@ describe('Index (CLI)', () => {
       const context = getContext({});
 
       expect(context.url).toBe('https://user:pass@clickhouse.example.com:8443/production_db');
-      expect(context.database).toBe('production_db');
     });
 
     it('should parse CLICKHOUSE_URL without credentials', () => {
@@ -164,7 +161,6 @@ describe('Index (CLI)', () => {
       const context = getContext({});
 
       expect(context.url).toBe('http://localhost:8123/testdb');
-      expect(context.database).toBe('testdb');
     });
 
     it('should handle cluster configuration with URL', () => {
@@ -176,7 +172,6 @@ describe('Index (CLI)', () => {
 
       expect(context.url).toBe('http://user:pass@localhost:8123/db');
       expect(context.cluster).toBe('my_cluster');
-      expect(context.database).toBe('db');
     });
 
     it('should require CLICKHOUSE_URL environment variable', () => {
@@ -212,7 +207,6 @@ describe('Index (CLI)', () => {
       
       // This indirectly tests that dotenv is working by showing env vars are used
       expect(context.url).toBe('http://test@test.example.com:8123/testdb');
-      expect(context.database).toBe('testdb');
       
       delete process.env.CLICKHOUSE_URL;
     });
@@ -287,7 +281,6 @@ describe('Index (CLI)', () => {
 
         new Runner({
           url: 'http://default@test.host:8123/test_db',
-          database: 'test_db',
           migrationsDir: expect.any(String),
           environment: 'development',
           nonInteractive: false
@@ -296,7 +289,6 @@ describe('Index (CLI)', () => {
         expect(mockRunner).toHaveBeenCalledWith(
           expect.objectContaining({
             url: 'http://default@test.host:8123/test_db',
-            database: 'test_db'
           })
         );
       });
@@ -354,7 +346,6 @@ describe('Index (CLI)', () => {
 
       expect(context).toMatchObject({
         url: 'http://default@localhost:8123/default',
-        database: 'default',
         environment: 'development',
         nonInteractive: false
       });

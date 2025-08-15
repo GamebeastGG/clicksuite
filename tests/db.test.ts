@@ -24,7 +24,6 @@ describe('Db', () => {
 
     context = {
       url: 'http://default@localhost:8123/test_db',
-      database: 'test_db',
       migrationsDir: '/tmp/migrations',
       environment: 'test'
     };
@@ -46,7 +45,6 @@ describe('Db', () => {
     it('should handle HTTPS URLs', () => {
       const httpsContext: Context = {
         url: 'https://user:pass@clickhouse.example.com:8443/prod_db',
-        database: 'prod_db',
         migrationsDir: '/tmp/migrations',
         environment: 'test'
       };
@@ -60,7 +58,6 @@ describe('Db', () => {
     it('should handle URLs with cluster configuration', () => {
       const clusterContext: Context = {
         url: 'http://default@localhost:8123/test_db',
-        database: 'test_db',
         cluster: 'test_cluster',
         migrationsDir: '/tmp/migrations',
         environment: 'test'
@@ -104,7 +101,6 @@ describe('Db', () => {
     it('should create migrations table with cluster', async () => {
       const clusterContext: Context = {
         url: 'http://default@localhost:8123/test_db',
-        database: 'test_db',
         cluster: 'test_cluster',
         migrationsDir: '/tmp/migrations',
         environment: 'test'
@@ -435,7 +431,7 @@ describe('Db', () => {
 
   describe('getDatabaseTables', () => {
     it('should return list of tables', async () => {
-      const mockTables = [{ name: 'users' }, { name: 'orders' }];
+      const mockTables = [{ name: 'users', database: 'test_db' }, { name: 'orders', database: 'prod_db' }];
       const mockResultSet = {
         json: jest.fn().mockResolvedValue({ data: mockTables })
       };
@@ -444,7 +440,7 @@ describe('Db', () => {
       const result = await db.getDatabaseTables();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.tables WHERE database = 'test_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'"
+        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine NOT LIKE '%View' AND engine != 'MaterializedView'"
       });
       expect(result).toEqual(mockTables);
     });
@@ -460,7 +456,7 @@ describe('Db', () => {
 
   describe('getDatabaseMaterializedViews', () => {
     it('should return list of materialized views', async () => {
-      const mockViews = [{ name: 'user_stats_mv' }, { name: 'order_stats_mv' }];
+      const mockViews = [{ name: 'user_stats_mv', database: 'test_db' }, { name: 'order_stats_mv', database: 'prod_db' }];
       const mockResultSet = {
         json: jest.fn().mockResolvedValue({ data: mockViews })
       };
@@ -469,7 +465,7 @@ describe('Db', () => {
       const result = await db.getDatabaseMaterializedViews();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.tables WHERE database = 'test_db' AND engine = 'MaterializedView'"
+        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine = 'MaterializedView'"
       });
       expect(result).toEqual(mockViews);
     });
@@ -493,7 +489,7 @@ describe('Db', () => {
 
   describe('getDatabaseDictionaries', () => {
     it('should return list of dictionaries', async () => {
-      const mockDictionaries = [{ name: 'countries_dict' }, { name: 'languages_dict' }];
+      const mockDictionaries = [{ name: 'countries_dict', database: 'test_db' }, { name: 'languages_dict', database: 'prod_db' }];
       const mockResultSet = {
         json: jest.fn().mockResolvedValue({ data: mockDictionaries })
       };
@@ -502,7 +498,7 @@ describe('Db', () => {
       const result = await db.getDatabaseDictionaries();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.dictionaries WHERE database = 'test_db'"
+        query: "SELECT name, database FROM system.dictionaries WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')"
       });
       expect(result).toEqual(mockDictionaries);
     });
@@ -539,7 +535,6 @@ describe('Db', () => {
     it('should clear migrations table with cluster', async () => {
       const clusterContext: Context = {
         url: 'http://default@localhost:8123/test_db',
-        database: 'test_db',
         cluster: 'test_cluster',
         migrationsDir: '/tmp/migrations',
         environment: 'test'
@@ -771,29 +766,12 @@ describe('Db', () => {
   });
 
   describe('getDatabaseSchema', () => {
-    it('should show warning about full implementation needed', async () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
-      // Mock empty results to focus on the warning message
-      mockClient.query.mockResolvedValue({ json: jest.fn().mockResolvedValue({ data: [] }) });
-
-      const result = await db.getDatabaseSchema();
-
-      // Should show warning about needing full implementation
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('⚠️ getDatabaseSchema needs full implementation')
-      );
-      
-      expect(result).toEqual({});
-      
-      consoleSpy.mockRestore();
-    });
 
     it('should handle errors when getting CREATE statements for tables', async () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       
       // Mock with one table that will fail
-      const mockTables = [{ name: 'bad_table' }];
+      const mockTables = [{ name: 'bad_table', database: 'test_db' }];
       const mockTablesResultSet = { json: jest.fn().mockResolvedValue({ data: mockTables }) };
       
       mockClient.query
@@ -805,7 +783,7 @@ describe('Db', () => {
       const result = await db.getDatabaseSchema();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('⚠️ Could not get CREATE TABLE for bad_table'),
+        expect.stringContaining('⚠️ Could not get CREATE TABLE for test_db.bad_table'),
         expect.any(Error)
       );
       
@@ -818,7 +796,7 @@ describe('Db', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       
       // Mock with one view that will fail
-      const mockViews = [{ name: 'bad_view' }];
+      const mockViews = [{ name: 'bad_view', database: 'test_db' }];
       const mockViewsResultSet = { json: jest.fn().mockResolvedValue({ data: mockViews }) };
       
       mockClient.query
@@ -830,7 +808,7 @@ describe('Db', () => {
       const result = await db.getDatabaseSchema();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('⚠️ Could not get CREATE VIEW for bad_view'),
+        expect.stringContaining('⚠️ Could not get CREATE VIEW for test_db.bad_view'),
         expect.any(Error)
       );
       
@@ -843,7 +821,7 @@ describe('Db', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       
       // Mock with one dictionary that will fail
-      const mockDictionaries = [{ name: 'bad_dict' }];
+      const mockDictionaries = [{ name: 'bad_dict', database: 'test_db' }];
       const mockDictionariesResultSet = { json: jest.fn().mockResolvedValue({ data: mockDictionaries }) };
       
       mockClient.query
@@ -855,7 +833,7 @@ describe('Db', () => {
       const result = await db.getDatabaseSchema();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('⚠️ Could not get CREATE DICTIONARY for bad_dict'),
+        expect.stringContaining('⚠️ Could not get CREATE DICTIONARY for test_db.bad_dict'),
         expect.any(Error)
       );
       
