@@ -23,7 +23,6 @@ describe('Runner', () => {
   beforeEach(() => {
     context = {
       url: 'http://default@localhost:8123/test_db',
-      database: 'test_db',
       migrationsDir: '/tmp/migrations',
       environment: 'test',
       nonInteractive: false,
@@ -1036,21 +1035,20 @@ describe('Runner', () => {
         {
           version: '20240101120000',
           name: 'create_users',
-          database: 'test_db',
           filePath: '/tmp/migrations/test.yml'
         }
       ];
 
-      jest.spyOn(verboseRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
-      mockDb.getDatabaseTablesForDb.mockResolvedValue([]);
-      mockDb.getDatabaseMaterializedViewsForDb.mockResolvedValue([]);
-      mockDb.getDatabaseDictionariesForDb.mockResolvedValue([]);
+      mockDb.getDatabaseSchema.mockResolvedValue({});
+      mockDb.getDatabaseTables.mockResolvedValue([]);
+      mockDb.getDatabaseMaterializedViews.mockResolvedValue([]);
+      mockDb.getDatabaseDictionaries.mockResolvedValue([]);
       mockFs.writeFile.mockResolvedValue(undefined);
 
       await verboseRunner['_updateSchemaFile']();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Updating schema file for databases:')
+        expect.stringContaining('Updating schema file for all databases')
       );
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Found 0 tables, 0 views, 0 dictionaries')
@@ -1068,24 +1066,20 @@ describe('Runner', () => {
         {
           version: '20240101120000',
           name: 'create_users',
-          database: 'test_db',
           filePath: '/tmp/migrations/test.yml'
         }
       ];
 
-      jest.spyOn(nonVerboseRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
-      mockDb.getDatabaseTablesForDb.mockResolvedValue([]);
-      mockDb.getDatabaseMaterializedViewsForDb.mockResolvedValue([]);
-      mockDb.getDatabaseDictionariesForDb.mockResolvedValue([]);
+      mockDb.getDatabaseSchema.mockResolvedValue({});
+      mockDb.getDatabaseTables.mockResolvedValue([]);
+      mockDb.getDatabaseMaterializedViews.mockResolvedValue([]);
+      mockDb.getDatabaseDictionaries.mockResolvedValue([]);
       mockFs.writeFile.mockResolvedValue(undefined);
 
       await nonVerboseRunner['_updateSchemaFile']();
 
       expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('Updating schema file for databases:')
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Schema file updated')
+        expect.stringContaining('Updating schema file for all databases')
       );
     });
 
@@ -1165,37 +1159,27 @@ describe('Runner', () => {
     });
 
     it('should generate schema file with tables, views, and dictionaries', async () => {
-      const mockTables = [{ name: 'users' }, { name: 'orders' }];
-      const mockViews = [{ name: 'user_stats_mv' }];
-      const mockDictionaries = [{ name: 'countries_dict' }];
+      const mockSchema = {
+        'table/test_db.users': 'CREATE TABLE test_db.users (id UInt32) ENGINE = MergeTree() ORDER BY id',
+        'table/test_db.orders': 'CREATE TABLE test_db.orders (id UInt32) ENGINE = MergeTree() ORDER BY id',
+        'view/test_db.user_stats_mv': 'CREATE MATERIALIZED VIEW test_db.user_stats_mv AS SELECT count() FROM users',
+        'dictionary/test_db.countries_dict': 'CREATE DICTIONARY test_db.countries_dict (id UInt32, name String) PRIMARY KEY id'
+      };
 
-      // Mock migrations to include a migration targeting a different database
-      const mockMigrations = [
-        { version: '123', name: 'test', database: 'gamebeast', filePath: '/test', upSQL: 'CREATE TABLE test', downSQL: 'DROP TABLE test' }
-      ];
-      jest.spyOn(runner as any, '_getLocalMigrations').mockResolvedValue(mockMigrations);
+      // For verbose mode, we still need to mock these for the count
+      const mockTablesWithDb = [{ name: 'users', database: 'test_db' }, { name: 'orders', database: 'test_db' }];
+      const mockViewsWithDb = [{ name: 'user_stats_mv', database: 'test_db' }];
+      const mockDictionariesWithDb = [{ name: 'countries_dict', database: 'test_db' }];
 
-      mockDb.getDatabaseTablesForDb.mockResolvedValue(mockTables);
-      mockDb.getDatabaseMaterializedViewsForDb.mockResolvedValue(mockViews);
-      mockDb.getDatabaseDictionariesForDb.mockResolvedValue(mockDictionaries);
-      mockDb.getCreateTableQueryForDb
-        .mockResolvedValueOnce('CREATE TABLE test_db.users (id UInt32) ENGINE = MergeTree() ORDER BY id')
-        .mockResolvedValueOnce('CREATE TABLE test_db.orders (id UInt32) ENGINE = MergeTree() ORDER BY id')
-        .mockResolvedValueOnce('CREATE MATERIALIZED VIEW test_db.user_stats_mv AS SELECT count() FROM users')
-        .mockResolvedValueOnce('CREATE DICTIONARY test_db.countries_dict (id UInt32, name String) PRIMARY KEY id');
+      mockDb.getDatabaseSchema.mockResolvedValue(mockSchema);
+      mockDb.getDatabaseTables.mockResolvedValue(mockTablesWithDb);
+      mockDb.getDatabaseMaterializedViews.mockResolvedValue(mockViewsWithDb);
+      mockDb.getDatabaseDictionaries.mockResolvedValue(mockDictionariesWithDb);
+      mockFs.writeFile.mockResolvedValue(undefined);
 
       await runner['_updateSchemaFile']();
 
-      expect(mockDb.getDatabaseTablesForDb).toHaveBeenCalledWith('test_db');
-      expect(mockDb.getDatabaseTablesForDb).toHaveBeenCalledWith('gamebeast');
-      expect(mockDb.getDatabaseMaterializedViewsForDb).toHaveBeenCalledWith('test_db');
-      expect(mockDb.getDatabaseMaterializedViewsForDb).toHaveBeenCalledWith('gamebeast');
-      expect(mockDb.getDatabaseDictionariesForDb).toHaveBeenCalledWith('test_db');
-      expect(mockDb.getDatabaseDictionariesForDb).toHaveBeenCalledWith('gamebeast');
-      expect(mockDb.getCreateTableQueryForDb).toHaveBeenCalledWith('users', 'test_db', 'TABLE');
-      expect(mockDb.getCreateTableQueryForDb).toHaveBeenCalledWith('orders', 'test_db', 'TABLE');
-      expect(mockDb.getCreateTableQueryForDb).toHaveBeenCalledWith('user_stats_mv', 'test_db', 'VIEW');
-      expect(mockDb.getCreateTableQueryForDb).toHaveBeenCalledWith('countries_dict', 'test_db', 'DICTIONARY');
+      expect(mockDb.getDatabaseSchema).toHaveBeenCalled();
 
       const writeCall = mockFs.writeFile.mock.calls[0];
       const schemaPath = writeCall[0] as string;
@@ -1204,7 +1188,7 @@ describe('Runner', () => {
       expect(schemaPath).toBe(path.join('/tmp/migrations', 'schema.sql'));
       expect(schemaContent).toContain('-- Auto-generated schema file');
       expect(schemaContent).toContain('-- Environment: test');
-      expect(schemaContent).toContain('-- Databases: test_db, gamebeast');
+      expect(schemaContent).toContain('-- Databases: test_db');
       expect(schemaContent).toContain('-- TABLES');
       expect(schemaContent).toContain('-- Table: test_db.users');
       expect(schemaContent).toContain('CREATE TABLE test_db.users (id UInt32) ENGINE = MergeTree() ORDER BY id;');
@@ -1218,10 +1202,11 @@ describe('Runner', () => {
     });
 
     it('should handle empty database', async () => {
-      jest.spyOn(runner as any, '_getLocalMigrations').mockResolvedValue([]);
-      mockDb.getDatabaseTablesForDb.mockResolvedValue([]);
-      mockDb.getDatabaseMaterializedViewsForDb.mockResolvedValue([]);
-      mockDb.getDatabaseDictionariesForDb.mockResolvedValue([]);
+      mockDb.getDatabaseSchema.mockResolvedValue({});
+      mockDb.getDatabaseTables.mockResolvedValue([]);
+      mockDb.getDatabaseMaterializedViews.mockResolvedValue([]);
+      mockDb.getDatabaseDictionaries.mockResolvedValue([]);
+      mockFs.writeFile.mockResolvedValue(undefined);
 
       await runner['_updateSchemaFile']();
 
@@ -1235,11 +1220,11 @@ describe('Runner', () => {
     });
 
     it('should handle database query errors gracefully', async () => {
-      jest.spyOn(runner as any, '_getLocalMigrations').mockResolvedValue([]);
-      mockDb.getDatabaseTablesForDb.mockResolvedValue([{ name: 'users' }]);
-      mockDb.getDatabaseMaterializedViewsForDb.mockResolvedValue([]);
-      mockDb.getDatabaseDictionariesForDb.mockResolvedValue([]);
-      mockDb.getCreateTableQueryForDb.mockRejectedValue(new Error('Permission denied'));
+      mockDb.getDatabaseSchema.mockResolvedValue({});
+      mockDb.getDatabaseTables.mockResolvedValue([{ name: 'users', database: 'test_db' }]);
+      mockDb.getDatabaseMaterializedViews.mockResolvedValue([]);
+      mockDb.getDatabaseDictionaries.mockResolvedValue([]);
+      mockFs.writeFile.mockResolvedValue(undefined);
 
       await runner['_updateSchemaFile']();
 
@@ -1366,6 +1351,166 @@ describe('Runner', () => {
 
       await expect(runner.up()).rejects.toThrow();
       expect(runner['_updateSchemaFile']).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('skipSchemaUpdate functionality', () => {
+    beforeEach(() => {
+      mockFs.writeFile.mockResolvedValue(undefined);
+      mockDb.getDatabaseTables.mockResolvedValue([]);
+      mockDb.getDatabaseMaterializedViews.mockResolvedValue([]);
+      mockDb.getDatabaseDictionaries.mockResolvedValue([]);
+    });
+
+    it('should skip schema file update when skipSchemaUpdate is true for up migrations', async () => {
+      const skipRunner = new Runner({
+        ...context,
+        skipSchemaUpdate: true
+      });
+      (skipRunner as any).db = mockDb;
+
+      const updateSchemaFileSpy = jest.spyOn(skipRunner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml',
+          upSQL: 'CREATE TABLE users'
+        }
+      ];
+
+      jest.spyOn(skipRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue([]);
+      mockDb.executeMigration.mockResolvedValue(undefined);
+      mockDb.markMigrationApplied.mockResolvedValue(undefined);
+
+      await skipRunner.up();
+
+      expect(updateSchemaFileSpy).not.toHaveBeenCalled();
+    });
+
+    it('should skip schema file update when skipSchemaUpdate is true for down migrations', async () => {
+      const skipRunner = new Runner({
+        ...context,
+        skipSchemaUpdate: true
+      });
+      (skipRunner as any).db = mockDb;
+
+      const updateSchemaFileSpy = jest.spyOn(skipRunner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml',
+          downSQL: 'DROP TABLE users'
+        }
+      ];
+
+      const mockAppliedMigrations = [
+        { version: '20240101120000', active: 1, created_at: '2024-01-01T12:00:00Z' }
+      ];
+
+      jest.spyOn(skipRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue(mockAppliedMigrations);
+      mockDb.executeMigration.mockResolvedValue(undefined);
+      mockDb.markMigrationRolledBack.mockResolvedValue(undefined);
+      mockInquirer.prompt.mockResolvedValue({ confirmation: true });
+
+      await skipRunner.down();
+
+      expect(updateSchemaFileSpy).not.toHaveBeenCalled();
+    });
+
+    it('should skip schema file update when skipSchemaUpdate is true for reset', async () => {
+      const skipRunner = new Runner({
+        ...context,
+        skipSchemaUpdate: true,
+        nonInteractive: true
+      });
+      (skipRunner as any).db = mockDb;
+
+      const updateSchemaFileSpy = jest.spyOn(skipRunner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml',
+          downSQL: 'DROP TABLE users'
+        }
+      ];
+
+      const mockAppliedMigrations = [
+        { version: '20240101120000', active: 1, created_at: '2024-01-01T12:00:00Z' }
+      ];
+
+      jest.spyOn(skipRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue(mockAppliedMigrations);
+      mockDb.executeMigration.mockResolvedValue(undefined);
+      mockDb.markMigrationRolledBack.mockResolvedValue(undefined);
+      mockDb.clearMigrationsTable.mockResolvedValue(undefined);
+      mockDb.optimizeMigrationTable.mockResolvedValue(undefined);
+
+      await skipRunner.reset();
+
+      expect(updateSchemaFileSpy).not.toHaveBeenCalled();
+    });
+
+    it('should skip schema file update when skipSchemaUpdate is true for schemaLoad', async () => {
+      const skipRunner = new Runner({
+        ...context,
+        skipSchemaUpdate: true
+      });
+      (skipRunner as any).db = mockDb;
+
+      const updateSchemaFileSpy = jest.spyOn(skipRunner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml'
+        }
+      ];
+
+      jest.spyOn(skipRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAllMigrationRecords.mockResolvedValue([]);
+      mockDb.markMigrationApplied.mockResolvedValue(undefined);
+      mockDb.optimizeMigrationTable.mockResolvedValue(undefined);
+
+      await skipRunner.schemaLoad();
+
+      expect(updateSchemaFileSpy).not.toHaveBeenCalled();
+    });
+
+    it('should update schema file when skipSchemaUpdate is false (default behavior)', async () => {
+      const defaultRunner = new Runner({
+        ...context,
+        skipSchemaUpdate: false
+      });
+      (defaultRunner as any).db = mockDb;
+
+      const updateSchemaFileSpy = jest.spyOn(defaultRunner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml',
+          upSQL: 'CREATE TABLE users'
+        }
+      ];
+
+      jest.spyOn(defaultRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue([]);
+      mockDb.executeMigration.mockResolvedValue(undefined);
+      mockDb.markMigrationApplied.mockResolvedValue(undefined);
+
+      await defaultRunner.up();
+
+      expect(updateSchemaFileSpy).toHaveBeenCalled();
     });
   });
 

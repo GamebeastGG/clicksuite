@@ -15,7 +15,6 @@ describe('Integration Tests', () => {
     
     context = {
       url: 'http://default@localhost:8123/test_db',
-      database: 'test_db',
       migrationsDir: path.join(tempDir, 'migrations'),
       environment: 'test',
       nonInteractive: true

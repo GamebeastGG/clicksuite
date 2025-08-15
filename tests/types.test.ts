@@ -5,13 +5,11 @@ describe('Types', () => {
     it('should have required properties with URL configuration', () => {
       const context: Context = {
         url: 'http://default@localhost:8123/test_db',
-        database: 'test_db',
         migrationsDir: '/path/to/migrations',
         environment: 'test'
       };
 
       expect(context.url).toBe('http://default@localhost:8123/test_db');
-      expect(context.database).toBe('test_db');
       expect(context.migrationsDir).toBe('/path/to/migrations');
       expect(context.environment).toBe('test');
     });
@@ -19,7 +17,6 @@ describe('Types', () => {
     it('should support optional properties', () => {
       const context: Context = {
         url: 'https://testuser:testpass@clickhouse.example.com:8443/prod_db',
-        database: 'prod_db',
         cluster: 'test_cluster',
         migrationsDir: '/migrations',
         nonInteractive: true,
@@ -38,13 +35,11 @@ describe('Types', () => {
     it('should handle minimal URL configuration', () => {
       const context: Context = {
         url: 'http://localhost:8123/default',
-        database: 'default',
         migrationsDir: '/migrations',
         environment: 'development'
       };
 
       expect(context.url).toBe('http://localhost:8123/default');
-      expect(context.database).toBe('default');
     });
   });
 

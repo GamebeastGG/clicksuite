@@ -196,25 +196,24 @@ export class Db {
   }
 
   async getDatabaseSchema(): Promise<Record<string, string>> {
-    console.warn(chalk.yellow('⚠️ getDatabaseSchema needs full implementation based on Houseplant\'s update_schema logic.'));
     const schema: Record<string, string> = {};
     const tables = await this.getDatabaseTables();
     for (const table of tables) {
         try {
-            schema[`table/${table.name}`] = await this.getCreateTableQuery(table.name, 'TABLE');
-        } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE TABLE for ${table.name}`), e); }
+            schema[`table/${table.database}.${table.name}`] = await this.getCreateTableQueryForDb(table.name, table.database, 'TABLE');
+        } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE TABLE for ${table.database}.${table.name}`), e); }
     }
     const views = await this.getDatabaseMaterializedViews();
     for (const view of views) {
         try {
-            schema[`view/${view.name}`] = await this.getCreateTableQuery(view.name, 'VIEW');
-        } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE VIEW for ${view.name}`), e); }
+            schema[`view/${view.database}.${view.name}`] = await this.getCreateTableQueryForDb(view.name, view.database, 'VIEW');
+        } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE VIEW for ${view.database}.${view.name}`), e); }
     }
     const dictionaries = await this.getDatabaseDictionaries();
     for (const dict of dictionaries) {
         try {
-            schema[`dictionary/${dict.name}`] = await this.getCreateTableQuery(dict.name, 'DICTIONARY');
-        } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE DICTIONARY for ${dict.name}`), e); }
+            schema[`dictionary/${dict.database}.${dict.name}`] = await this.getCreateTableQueryForDb(dict.name, dict.database, 'DICTIONARY');
+        } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE DICTIONARY for ${dict.database}.${dict.name}`), e); }
     }
     return schema;
   }
@@ -226,39 +225,39 @@ export class Db {
      return applied.length > 0 ? applied[0].version : undefined;
   }
 
-  async getDatabaseTables(): Promise<{name: string}[]> {
+  async getDatabaseTables(): Promise<{name: string, database: string}[]> {
     try {
       const resultSet = await this.client.query({
-        query: `SELECT name FROM system.tables WHERE database = '${this.context.database}' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'`,
+        query: `SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine NOT LIKE '%View' AND engine != 'MaterializedView'`,
       });
       const response = await resultSet.json();
-      return response.data as {name: string}[];
+      return response.data as {name: string, database: string}[];
     } catch (error) {
       console.error(chalk.bold.red('❌ Failed to get database tables:'), error);
       return [];
     }
   }
 
-  async getDatabaseMaterializedViews(): Promise<{name: string}[]> {
+  async getDatabaseMaterializedViews(): Promise<{name: string, database: string}[]> {
      try {
       const resultSet = await this.client.query({
-        query: `SELECT name FROM system.tables WHERE database = '${this.context.database}' AND engine = 'MaterializedView'`,
+        query: `SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine = 'MaterializedView'`,
       });
       const response = await resultSet.json();
-      return response.data as {name: string}[];
+      return response.data as {name: string, database: string}[];
     } catch (error) {
       console.error(chalk.bold.red('❌ Failed to get materialized views:'), error);
       return [];
     }
   }
 
-  async getDatabaseDictionaries(): Promise<{name: string}[]> {
+  async getDatabaseDictionaries(): Promise<{name: string, database: string}[]> {
     try {
       const resultSet = await this.client.query({
-        query: `SELECT name FROM system.dictionaries WHERE database = '${this.context.database}'`,
+        query: `SELECT name, database FROM system.dictionaries WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')`,
       });
       const response = await resultSet.json();
-      return response.data as {name: string}[];
+      return response.data as {name: string, database: string}[];
     } catch (error) {
       console.error(chalk.bold.red('❌ Failed to get dictionaries:'), error);
       return [];
@@ -304,18 +303,6 @@ export class Db {
     }
   }
   
-  async getCreateTableQuery(name: string, type: 'TABLE' | 'VIEW' | 'DICTIONARY'): Promise<string> {
-    try {
-      const objectType = type === 'VIEW' ? 'MATERIALIZED VIEW' : type;
-      const showQuery = `SHOW CREATE ${objectType} ${this.context.database}.${name}`;
-      const resultSet = await this.client.query({ query: showQuery });
-      const resultText = await resultSet.text();
-      return resultText.trim();
-    } catch (error) {
-      console.error(chalk.bold.red(`❌ Failed to get create query for ${type} ${name}:`), error);
-      throw error;
-    }
-  }
 
   async getCreateTableQueryForDb(name: string, database: string, type: 'TABLE' | 'VIEW' | 'DICTIONARY'): Promise<string> {
     try {

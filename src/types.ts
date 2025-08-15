@@ -7,7 +7,7 @@ export interface Context {
   migrationsDatabase?: string; // Database name for migrations table
   dryRun?: boolean; // For previewing migrations without executing them
   verbose?: boolean; // For showing detailed SQL logs and verbose output
-  readonly database: string; // Extracted from URL for convenience
+  skipSchemaUpdate?: boolean; // Skip updating schema.sql file after migrations
 }
 
 // Represents the raw structure of a parsed YAML migration file

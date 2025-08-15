@@ -13,7 +13,7 @@ A robust CLI tool for managing ClickHouse database migrations with environment-s
 *   **Environment-aware migrations** - separate SQL for development, test, and production
 *   **Multiple query support** - execute multiple SQL statements in a single migration
 *   **Environment variable interpolation** - secure credential management with `${ENV_VAR}` syntax
-*   **Auto-generated schema.sql** - complete database schema tracking
+*   **Auto-generated schema.sql** - complete multi-database schema tracking across all non-system databases
 *   **Dry run mode** - preview migrations before executing with `--dry-run`
 *   **Verbose logging control** - clean output by default, detailed logs with `--verbose`
 *   **Full TypeScript support** - exported types for programmatic usage
@@ -504,15 +504,22 @@ When contributing:
 Clicksuite can also be used programmatically in your Node.js/TypeScript applications:
 
 ```typescript
-import { Runner, Db, Context } from 'clicksuite';
+import { Runner, Db, Context, getContext } from 'clicksuite';
 
-// Create a context for your ClickHouse configuration
-const context: Context = {
+// Option 1: Use getContext helper (recommended)
+const context = getContext({
+  skipSchemaUpdate: true,  // Skip schema.sql generation
+  verbose: true,          // Enable detailed logging
+  dryRun: false          // Execute migrations (not preview)
+});
+
+// Option 2: Create context manually
+const manualContext: Context = {
   url: 'http://default@localhost:8123/my_database',
-  database: 'my_database', // Extracted from URL
   migrationsDir: '/path/to/migrations',
   environment: 'development',
-  nonInteractive: false
+  nonInteractive: false,
+  skipSchemaUpdate: true  // New option to skip schema.sql updates
 };
 
 // Run migrations programmatically
@@ -526,16 +533,115 @@ const tables = await db.getDatabaseTables();
 await db.close();
 ```
 
+### Configuration Options
+
+The `Context` interface supports all CLI options plus programmatic-specific settings:
+
+| Option | Type | Description | Default |
+|--------|------|-------------|---------|
+| `url` | `string` | **Required.** ClickHouse connection URL | - |
+| `migrationsDir` | `string` | **Required.** Absolute path to migrations directory | - |
+| `environment` | `string` | **Required.** Environment name (development, test, production) | - |
+| `cluster` | `string?` | ClickHouse cluster name for distributed setups | `undefined` |
+| `migrationsDatabase` | `string?` | Database for the migrations tracking table | `'default'` |
+| `nonInteractive` | `boolean?` | Skip confirmation prompts (useful for CI/CD) | `false` |
+| `dryRun` | `boolean?` | Preview migrations without executing | `false` |
+| `verbose` | `boolean?` | Show detailed SQL logs and debug info | `false` |
+| `skipSchemaUpdate` | `boolean?` | **New!** Skip updating schema.sql file after migrations | `false` |
+
+### Schema.sql Generation Control
+
+By default, Clicksuite automatically generates a `schema.sql` file containing all database objects (tables, views, dictionaries) from **all databases** (excluding system databases) after successful migrations. This provides a complete snapshot of your database schema.
+
+**To disable schema.sql generation:**
+
+```typescript
+// Programmatic usage
+const context = getContext({
+  skipSchemaUpdate: true
+});
+
+// Or with manual context
+const context: Context = {
+  url: 'http://default@localhost:8123/my_database',
+  migrationsDir: '/path/to/migrations',
+  environment: 'production',
+  skipSchemaUpdate: true  // Disables schema.sql generation
+};
+```
+
+**When to disable schema.sql generation:**
+- High-frequency migration runs where file I/O should be minimized
+- Environments where the migrations directory is read-only
+- When using custom schema management tools
+- For performance optimization in CI/CD pipelines
+
+**Schema.sql features:**
+- **Multi-database support**: Includes objects from all non-system databases
+- **Complete coverage**: Tables, materialized views, and dictionaries
+- **Automatic organization**: Grouped by object type with clear sections
+- **Environment tracking**: Shows which environment generated the schema
+- **Timestamp tracking**: Records when the schema was last updated
+
 ### Available Types
 
 All TypeScript types are exported for easy integration:
 
-- `Context` - Configuration interface
-- `MigrationFile` - Represents a migration file
-- `MigrationRecord` - Database migration record
-- `MigrationStatus` - Migration status information
-- `MigrationState` - Migration state enum
-- `RawMigrationFileContent` - Raw YAML migration content
+- `Context` - Configuration interface for all options
+- `MigrationFile` - Represents a parsed migration file
+- `MigrationRecord` - Database migration tracking record
+- `MigrationStatus` - Migration status with state information
+- `MigrationState` - Migration state enum ('APPLIED', 'PENDING', 'INACTIVE')
+- `RawMigrationFileContent` - Raw YAML migration file structure
+
+### Advanced Programmatic Examples
+
+**Custom migration workflow:**
+```typescript
+import { Runner, getContext } from 'clicksuite';
+
+async function customMigrationWorkflow() {
+  const context = getContext({
+    environment: 'production',
+    skipSchemaUpdate: true,  // Skip schema.sql for performance
+    nonInteractive: true,    // No prompts in production
+    verbose: false          // Clean output for logs
+  });
+
+  const runner = new Runner(context);
+  
+  // Initialize if needed
+  await runner.init();
+  
+  // Check status before running
+  await runner.status();
+  
+  // Run migrations
+  await runner.up();
+  
+  console.log('Production migration completed successfully');
+}
+```
+
+**Development workflow with schema tracking:**
+```typescript
+import { Runner, getContext } from 'clicksuite';
+
+async function developmentWorkflow() {
+  const context = getContext({
+    environment: 'development',
+    skipSchemaUpdate: false, // Generate schema.sql for development
+    verbose: true,          // Detailed logs for debugging
+    dryRun: false          // Actually execute migrations
+  });
+
+  const runner = new Runner(context);
+  await runner.migrate();
+  
+  // schema.sql is automatically updated with latest database state
+  console.log('Development migration completed, schema.sql updated');
+}
+```
 
 See the [examples directory](./examples/) for more detailed usage examples.
 

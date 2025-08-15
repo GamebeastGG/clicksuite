@@ -17,13 +17,9 @@ export function getContext(argv: { [key: string]: any }): Context {
     throw new Error('CLICKHOUSE_URL environment variable is required. Expected format: http://username:password@host:port/database');
   }
 
-  // Parse database from URL for convenience
-  let database: string;
+  // Basic URL validation
   try {
     const urlObj = new URL(process.env.CLICKHOUSE_URL);
-    database = urlObj.pathname.replace('/', '') || 'default';
-    
-    // Basic URL validation
     if (!urlObj.protocol || !urlObj.hostname) {
       throw new Error('Invalid URL format');
     }
@@ -37,7 +33,6 @@ export function getContext(argv: { [key: string]: any }): Context {
 
   return {
     url: process.env.CLICKHOUSE_URL,
-    database,
     cluster: clusterValue,
     migrationsDir: actualMigrationsDir,
     nonInteractive: argv.nonInteractive !== undefined ? argv.nonInteractive as boolean : !!process.env.CI,
@@ -45,5 +40,6 @@ export function getContext(argv: { [key: string]: any }): Context {
     dryRun: argv.dryRun !== undefined ? argv.dryRun as boolean : false,
     verbose: argv.verbose !== undefined ? argv.verbose as boolean : false,
     migrationsDatabase: argv.migrationsDatabase !== undefined ? argv.migrationsDatabase as string : migrationsDatabase,
+    skipSchemaUpdate: argv.skipSchemaUpdate !== undefined ? argv.skipSchemaUpdate as boolean : false,
   };
 }

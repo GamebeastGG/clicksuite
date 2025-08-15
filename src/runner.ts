@@ -269,7 +269,7 @@ production:
       return;
     }
 
-    console.log(chalk.bold(`\nMigration Status (Env: ${this.context.environment}, DB: ${this.context.database}):`));
+    console.log(chalk.bold(`\nMigration Status (Env: ${this.context.environment}, Migrations DB: ${this.context.migrationsDatabase || 'default'}):`));
     console.log(chalk.gray('-------------------------------------------------------------------------------------'));
     statusList.forEach(s => {
       let stateChalk = chalk.yellow;
@@ -401,7 +401,9 @@ production:
       console.log(chalk.cyan(`\n🔍  DRY RUN COMPLETE: ${migrationsToRun.length} migration(s) would be applied (no changes made)`));
     } else {
       console.log(chalk.greenBright('\n✅  All selected UP migrations applied successfully!'));
-      await this._updateSchemaFile();
+      if (!this.context.skipSchemaUpdate) {
+        await this._updateSchemaFile();
+      }
     }
   }
 
@@ -562,7 +564,9 @@ production:
       console.log(chalk.cyan(`\n🔍 DRY RUN COMPLETE: ${migrationsToEffectivelyRollback.length} migration(s) would be rolled back (no changes made)`));
     } else {
       console.log(chalk.greenBright('\n✅ Selected DOWN migrations completed successfully!'));
-      await this._updateSchemaFile();
+      if (!this.context.skipSchemaUpdate) {
+        await this._updateSchemaFile();
+      }
     }
   }
 
@@ -628,7 +632,9 @@ production:
       await this.db.clearMigrationsTable();
       await this.db.optimizeMigrationTable();
       console.log(chalk.greenBright('\n✅ Database migrations have been reset successfully!'));
-      await this._updateSchemaFile();
+      if (!this.context.skipSchemaUpdate) {
+        await this._updateSchemaFile();
+      }
     } catch (error: any) {
       console.error(chalk.bold.red('❌ Error clearing or optimizing migrations table during reset:'), error.message);
       throw error;
@@ -639,111 +645,88 @@ production:
     const schemaPath = path.join(this.context.migrationsDir, 'schema.sql');
     
     try {
-      // Get all databases that have been targeted by migrations
-      const localMigrations = await this._getLocalMigrations();
-      const targetDatabases = new Set<string>();
-      
-      // Add context database (from CLICKHOUSE_URL)
-      targetDatabases.add(this.context.database);
-      
-      // Add databases from migration files
-      localMigrations.forEach(migration => {
-        if (migration.database) {
-          targetDatabases.add(migration.database);
-        }
-      });
-      
       if (this.context.verbose) {
-        console.log(chalk.dim(`🔍 Updating schema file for databases: ${Array.from(targetDatabases).join(', ')}`));
+        console.log(chalk.dim(`🔍 Updating schema file for all databases (excluding system databases)`));
       }
       
-      let allTables: Array<{name: string, database: string}> = [];
-      let allViews: Array<{name: string, database: string}> = [];
-      let allDictionaries: Array<{name: string, database: string}> = [];
+      // Use the existing getDatabaseSchema method which already handles all the logic
+      const schema = await this.db.getDatabaseSchema();
       
-      // Query each database for its objects
-      for (const dbName of targetDatabases) {
-        const tables = await this.db.getDatabaseTablesForDb(dbName);
-        const views = await this.db.getDatabaseMaterializedViewsForDb(dbName);
-        const dictionaries = await this.db.getDatabaseDictionariesForDb(dbName);
-        
-        allTables.push(...tables.map(t => ({...t, database: dbName})));
-        allViews.push(...views.map(v => ({...v, database: dbName})));
-        allDictionaries.push(...dictionaries.map(d => ({...d, database: dbName})));
-      }
-      
+      // Get all database objects to count them for verbose output
       if (this.context.verbose) {
+        const allTables = await this.db.getDatabaseTables();
+        const allViews = await this.db.getDatabaseMaterializedViews();
+        const allDictionaries = await this.db.getDatabaseDictionaries();
         console.log(chalk.dim(`🔍 Found ${allTables.length} tables, ${allViews.length} views, ${allDictionaries.length} dictionaries across all databases`));
       }
+      
+      // Get unique database names from schema keys
+      const uniqueDatabases = new Set<string>();
+      Object.keys(schema).forEach(key => {
+        const match = key.match(/^(table|view|dictionary)\/(.+)\.(.+)$/);
+        if (match) {
+          uniqueDatabases.add(match[2]); // Extract database name
+        }
+      });
       
       let schemaContent = `-- Auto-generated schema file
 -- This file contains table definitions, materialized view definitions, and dictionary definitions
 -- Generated on: ${new Date().toISOString()}
 -- Environment: ${this.context.environment}
--- Databases: ${Array.from(targetDatabases).join(', ')}
+-- Databases: ${Array.from(uniqueDatabases).sort().join(', ')}
 
 `;
 
-      // Get table definitions
-      if (allTables.length > 0) {
+      // Group schema entries by type
+      const tables = Object.entries(schema).filter(([key]) => key.startsWith('table/'));
+      const views = Object.entries(schema).filter(([key]) => key.startsWith('view/'));
+      const dictionaries = Object.entries(schema).filter(([key]) => key.startsWith('dictionary/'));
+
+      // Add table definitions
+      if (tables.length > 0) {
         schemaContent += '\n-- =====================================================\n';
         schemaContent += '-- TABLES\n';
         schemaContent += '-- =====================================================\n';
-        for (const table of allTables) {
-          try {
-            const createStatement = await this.db.getCreateTableQueryForDb(table.name, table.database, 'TABLE');
-            schemaContent += `\n-- Table: ${table.database}.${table.name}\n`;
-            schemaContent += createStatement;
-            // Ensure the statement ends with a semicolon and proper spacing
-            if (!createStatement.endsWith(';')) {
-              schemaContent += ';';
-            }
-            schemaContent += '\n\n';
-          } catch (e) {
-            console.warn(chalk.yellow(`⚠️  Warning: Could not get CREATE statement for table ${table.database}.${table.name}`));
+        for (const [key, createStatement] of tables) {
+          const objectName = key.replace('table/', '');
+          schemaContent += `\n-- Table: ${objectName}\n`;
+          schemaContent += createStatement;
+          if (!createStatement.endsWith(';')) {
+            schemaContent += ';';
           }
+          schemaContent += '\n\n';
         }
       }
 
-      // Get materialized view definitions
-      if (allViews.length > 0) {
+      // Add materialized view definitions
+      if (views.length > 0) {
         schemaContent += '\n-- =====================================================\n';
         schemaContent += '-- MATERIALIZED VIEWS\n';
         schemaContent += '-- =====================================================\n';
-        for (const view of allViews) {
-          try {
-            const createStatement = await this.db.getCreateTableQueryForDb(view.name, view.database, 'VIEW');
-            schemaContent += `\n-- Materialized View: ${view.database}.${view.name}\n`;
-            schemaContent += createStatement;
-            // Ensure the statement ends with a semicolon and proper spacing
-            if (!createStatement.endsWith(';')) {
-              schemaContent += ';';
-            }
-            schemaContent += '\n\n';
-          } catch (e) {
-            console.warn(chalk.yellow(`⚠️  Warning: Could not get CREATE statement for materialized view ${view.database}.${view.name}`));
+        for (const [key, createStatement] of views) {
+          const objectName = key.replace('view/', '');
+          schemaContent += `\n-- Materialized View: ${objectName}\n`;
+          schemaContent += createStatement;
+          if (!createStatement.endsWith(';')) {
+            schemaContent += ';';
           }
+          schemaContent += '\n\n';
         }
       }
 
-      // Get dictionary definitions
-      if (allDictionaries.length > 0) {
+      // Add dictionary definitions
+      if (dictionaries.length > 0) {
         schemaContent += '\n-- =====================================================\n';
         schemaContent += '-- DICTIONARIES\n';
         schemaContent += '-- =====================================================\n';
-        for (const dict of allDictionaries) {
-          try {
-            const createStatement = await this.db.getCreateTableQueryForDb(dict.name, dict.database, 'DICTIONARY');
-            schemaContent += `\n-- Dictionary: ${dict.database}.${dict.name}\n`;
-            schemaContent += createStatement;
-            // Ensure the statement ends with a semicolon and proper spacing
-            if (!createStatement.endsWith(';')) {
-              schemaContent += ';';
-            }
-            schemaContent += '\n\n';
-          } catch (e) {
-            console.warn(chalk.yellow(`⚠️  Warning: Could not get CREATE statement for dictionary ${dict.name}`));
+        for (const [key, createStatement] of dictionaries) {
+          const objectName = key.replace('dictionary/', '');
+          schemaContent += `\n-- Dictionary: ${objectName}\n`;
+          schemaContent += createStatement;
+          if (!createStatement.endsWith(';')) {
+            schemaContent += ';';
           }
+          schemaContent += '\n\n';
         }
       }
 
@@ -797,7 +780,9 @@ production:
     if (loadedCount > 0) {
         try {
             await this.db.optimizeMigrationTable();
-            await this._updateSchemaFile();
+            if (!this.context.skipSchemaUpdate) {
+                await this._updateSchemaFile();
+            }
         } catch (e) { /* error already logged by optimizeMigrationTable */ }
     }
   }
