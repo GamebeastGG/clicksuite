@@ -1354,6 +1354,166 @@ describe('Runner', () => {
     });
   });
 
+  describe('skipSchemaUpdate functionality', () => {
+    beforeEach(() => {
+      mockFs.writeFile.mockResolvedValue(undefined);
+      mockDb.getDatabaseTables.mockResolvedValue([]);
+      mockDb.getDatabaseMaterializedViews.mockResolvedValue([]);
+      mockDb.getDatabaseDictionaries.mockResolvedValue([]);
+    });
+
+    it('should skip schema file update when skipSchemaUpdate is true for up migrations', async () => {
+      const skipRunner = new Runner({
+        ...context,
+        skipSchemaUpdate: true
+      });
+      (skipRunner as any).db = mockDb;
+
+      const updateSchemaFileSpy = jest.spyOn(skipRunner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml',
+          upSQL: 'CREATE TABLE users'
+        }
+      ];
+
+      jest.spyOn(skipRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue([]);
+      mockDb.executeMigration.mockResolvedValue(undefined);
+      mockDb.markMigrationApplied.mockResolvedValue(undefined);
+
+      await skipRunner.up();
+
+      expect(updateSchemaFileSpy).not.toHaveBeenCalled();
+    });
+
+    it('should skip schema file update when skipSchemaUpdate is true for down migrations', async () => {
+      const skipRunner = new Runner({
+        ...context,
+        skipSchemaUpdate: true
+      });
+      (skipRunner as any).db = mockDb;
+
+      const updateSchemaFileSpy = jest.spyOn(skipRunner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml',
+          downSQL: 'DROP TABLE users'
+        }
+      ];
+
+      const mockAppliedMigrations = [
+        { version: '20240101120000', active: 1, created_at: '2024-01-01T12:00:00Z' }
+      ];
+
+      jest.spyOn(skipRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue(mockAppliedMigrations);
+      mockDb.executeMigration.mockResolvedValue(undefined);
+      mockDb.markMigrationRolledBack.mockResolvedValue(undefined);
+      mockInquirer.prompt.mockResolvedValue({ confirmation: true });
+
+      await skipRunner.down();
+
+      expect(updateSchemaFileSpy).not.toHaveBeenCalled();
+    });
+
+    it('should skip schema file update when skipSchemaUpdate is true for reset', async () => {
+      const skipRunner = new Runner({
+        ...context,
+        skipSchemaUpdate: true,
+        nonInteractive: true
+      });
+      (skipRunner as any).db = mockDb;
+
+      const updateSchemaFileSpy = jest.spyOn(skipRunner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml',
+          downSQL: 'DROP TABLE users'
+        }
+      ];
+
+      const mockAppliedMigrations = [
+        { version: '20240101120000', active: 1, created_at: '2024-01-01T12:00:00Z' }
+      ];
+
+      jest.spyOn(skipRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue(mockAppliedMigrations);
+      mockDb.executeMigration.mockResolvedValue(undefined);
+      mockDb.markMigrationRolledBack.mockResolvedValue(undefined);
+      mockDb.clearMigrationsTable.mockResolvedValue(undefined);
+      mockDb.optimizeMigrationTable.mockResolvedValue(undefined);
+
+      await skipRunner.reset();
+
+      expect(updateSchemaFileSpy).not.toHaveBeenCalled();
+    });
+
+    it('should skip schema file update when skipSchemaUpdate is true for schemaLoad', async () => {
+      const skipRunner = new Runner({
+        ...context,
+        skipSchemaUpdate: true
+      });
+      (skipRunner as any).db = mockDb;
+
+      const updateSchemaFileSpy = jest.spyOn(skipRunner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml'
+        }
+      ];
+
+      jest.spyOn(skipRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAllMigrationRecords.mockResolvedValue([]);
+      mockDb.markMigrationApplied.mockResolvedValue(undefined);
+      mockDb.optimizeMigrationTable.mockResolvedValue(undefined);
+
+      await skipRunner.schemaLoad();
+
+      expect(updateSchemaFileSpy).not.toHaveBeenCalled();
+    });
+
+    it('should update schema file when skipSchemaUpdate is false (default behavior)', async () => {
+      const defaultRunner = new Runner({
+        ...context,
+        skipSchemaUpdate: false
+      });
+      (defaultRunner as any).db = mockDb;
+
+      const updateSchemaFileSpy = jest.spyOn(defaultRunner as any, '_updateSchemaFile').mockResolvedValue(undefined);
+
+      const mockLocalMigrations = [
+        {
+          version: '20240101120000',
+          name: 'create_users',
+          filePath: '/tmp/migrations/test.yml',
+          upSQL: 'CREATE TABLE users'
+        }
+      ];
+
+      jest.spyOn(defaultRunner as any, '_getLocalMigrations').mockResolvedValue(mockLocalMigrations);
+      mockDb.getAppliedMigrations.mockResolvedValue([]);
+      mockDb.executeMigration.mockResolvedValue(undefined);
+      mockDb.markMigrationApplied.mockResolvedValue(undefined);
+
+      await defaultRunner.up();
+
+      expect(updateSchemaFileSpy).toHaveBeenCalled();
+    });
+  });
+
   describe('environment variable interpolation', () => {
     let originalEnv: NodeJS.ProcessEnv;
     let consoleWarnSpy: jest.SpyInstance;

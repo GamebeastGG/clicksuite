@@ -377,5 +377,18 @@ describe('Index (CLI)', () => {
       expect(nonDryRunContext.dryRun).toBe(false);
       expect(defaultContext.dryRun).toBe(false);
     });
+
+    it('should set skipSchemaUpdate flag from CLI arguments', () => {
+      process.env.CLICKHOUSE_URL = 'http://default@localhost:8123/default';
+      
+      const { getContext } = require('../src/index');
+      const skipSchemaContext = getContext({ skipSchemaUpdate: true });
+      const noSkipSchemaContext = getContext({ skipSchemaUpdate: false });
+      const defaultContext = getContext({});
+
+      expect(skipSchemaContext.skipSchemaUpdate).toBe(true);
+      expect(noSkipSchemaContext.skipSchemaUpdate).toBe(false);
+      expect(defaultContext.skipSchemaUpdate).toBe(false);
+    });
   });
 });
