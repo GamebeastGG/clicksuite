@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@theme {
+    --color-gb-secondary: #1f1f1f
+}

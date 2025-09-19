@@ -1,0 +1,14 @@
+# Clicksuite
+
+A robust CLI tool for managing ClickHouse database migrations with environment-specific configurations and TypeScript support.
+
+## Key Features
+
+*   **Environment-aware migrations** - separate SQL for development, test, and production
+*   **Multiple query support** - execute multiple SQL statements in a single migration
+*   **Environment variable interpolation** - secure credential management with `${ENV_VAR}` syntax
+*   **Auto-generated schema.sql** - complete multi-database schema tracking across all non-system databases
+*   **Dry run mode** - preview migrations before executing with `--dry-run`
+*   **Verbose logging control** - clean output by default, detailed logs with `--verbose`
+*   **Full TypeScript support** - exported types for programmatic usage
+*   **Comprehensive migration management** - apply, rollback, reset, and status tracking

@@ -1,0 +1,46 @@
+# Getting Started
+
+## Prerequisites
+
+*   Node.js (v16+ recommended)
+*   npm or yarn
+*   A running ClickHouse instance
+
+## Installation
+
+**Global installation (recommended for CLI usage):**
+```bash
+npm install -g clicksuite
+```
+
+**Or use without installing:**
+```bash
+npx clicksuite init
+```
+
+**For projects (with programmatic usage):**
+```bash
+npm install --save-dev clicksuite
+```
+
+## Initial Setup
+
+1. **Initialize in your project:**
+   ```bash
+   clicksuite init
+   ```
+
+2. **Configure your environment (`.env` file):**
+   ```env
+   CLICKHOUSE_URL=http://default@localhost:8123/my_database
+   ```
+
+3. **Generate your first migration:**
+   ```bash
+   clicksuite generate create_users_table
+   ```
+
+4. **Apply migrations:**
+   ```bash
+   clicksuite migrate
+   ```
