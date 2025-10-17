@@ -1,12 +1,14 @@
-import { Db } from '../src/db';
-import { Context } from '../src/types';
-import { createClient } from '@clickhouse/client';
+import { Db } from "../src/db";
+import { Context } from "../src/types";
+import { createClient } from "@clickhouse/client";
 
-jest.mock('@clickhouse/client');
+jest.mock("@clickhouse/client");
 
-const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
+const mockCreateClient = createClient as jest.MockedFunction<
+  typeof createClient
+>;
 
-describe('Db', () => {
+describe("Db", () => {
   let db: Db;
   let mockClient: any;
   let context: Context;
@@ -23,9 +25,9 @@ describe('Db', () => {
     mockCreateClient.mockReturnValue(mockClient);
 
     context = {
-      url: 'http://default@localhost:8123/test_db',
-      migrationsDir: '/tmp/migrations',
-      environment: 'test'
+      url: "http://default@localhost:8123/test_db",
+      migrationsDir: "/tmp/migrations",
+      environment: "test",
     };
 
     db = new Db(context);
@@ -35,43 +37,43 @@ describe('Db', () => {
     jest.clearAllMocks();
   });
 
-  describe('constructor', () => {
-    it('should create ClickHouse client with URL configuration', () => {
+  describe("constructor", () => {
+    it("should create ClickHouse client with URL configuration", () => {
       expect(mockCreateClient).toHaveBeenCalledWith({
-        url: 'http://default@localhost:8123/test_db',
+        url: "http://default@localhost:8123/test_db",
       });
     });
 
-    it('should handle HTTPS URLs', () => {
+    it("should handle HTTPS URLs", () => {
       const httpsContext: Context = {
-        url: 'https://user:pass@clickhouse.example.com:8443/prod_db',
-        migrationsDir: '/tmp/migrations',
-        environment: 'test'
+        url: "https://user:pass@clickhouse.example.com:8443/prod_db",
+        migrationsDir: "/tmp/migrations",
+        environment: "test",
       };
       new Db(httpsContext);
 
       expect(mockCreateClient).toHaveBeenCalledWith({
-        url: 'https://user:pass@clickhouse.example.com:8443/prod_db',
+        url: "https://user:pass@clickhouse.example.com:8443/prod_db",
       });
     });
 
-    it('should handle URLs with cluster configuration', () => {
+    it("should handle URLs with cluster configuration", () => {
       const clusterContext: Context = {
-        url: 'http://default@localhost:8123/test_db',
-        cluster: 'test_cluster',
-        migrationsDir: '/tmp/migrations',
-        environment: 'test'
+        url: "http://default@localhost:8123/test_db",
+        cluster: "test_cluster",
+        migrationsDir: "/tmp/migrations",
+        environment: "test",
       };
       new Db(clusterContext);
 
       expect(mockCreateClient).toHaveBeenCalledWith({
-        url: 'http://default@localhost:8123/test_db',
+        url: "http://default@localhost:8123/test_db",
       });
     });
   });
 
-  describe('ping', () => {
-    it('should call client ping method', async () => {
+  describe("ping", () => {
+    it("should call client ping method", async () => {
       const pingResult = { success: true };
       mockClient.ping.mockResolvedValue(pingResult);
 
@@ -82,28 +84,30 @@ describe('Db', () => {
     });
   });
 
-  describe('initMigrationsTable', () => {
-    it('should create migrations table without cluster', async () => {
+  describe("initMigrationsTable", () => {
+    it("should create migrations table without cluster", async () => {
       mockClient.command.mockResolvedValue(undefined);
 
       await db.initMigrationsTable();
 
       expect(mockClient.command).toHaveBeenCalledWith({
-        query: expect.stringContaining('CREATE TABLE IF NOT EXISTS default.__clicksuite_migrations'),
-        clickhouse_settings: { wait_end_of_query: 1 }
+        query: expect.stringContaining(
+          "CREATE TABLE IF NOT EXISTS default.__clicksuite_migrations",
+        ),
+        clickhouse_settings: { wait_end_of_query: 1 },
       });
 
       const query = mockClient.command.mock.calls[0][0].query;
-      expect(query).toContain('ReplacingMergeTree()');
-      expect(query).not.toContain('ON CLUSTER');
+      expect(query).toContain("ReplacingMergeTree()");
+      expect(query).not.toContain("ON CLUSTER");
     });
 
-    it('should create migrations table with cluster', async () => {
+    it("should create migrations table with cluster", async () => {
       const clusterContext: Context = {
-        url: 'http://default@localhost:8123/test_db',
-        cluster: 'test_cluster',
-        migrationsDir: '/tmp/migrations',
-        environment: 'test'
+        url: "http://default@localhost:8123/test_db",
+        cluster: "test_cluster",
+        migrationsDir: "/tmp/migrations",
+        environment: "test",
       };
       const clusterDb = new Db(clusterContext);
       mockClient.command.mockResolvedValue(undefined);
@@ -111,41 +115,52 @@ describe('Db', () => {
       await clusterDb.initMigrationsTable();
 
       const query = mockClient.command.mock.calls[0][0].query;
-      expect(query).toContain('ON CLUSTER test_cluster');
-      expect(query).toContain('ReplicatedReplacingMergeTree');
-      expect(query).toContain('default.__clicksuite_migrations');
+      expect(query).toContain("ON CLUSTER test_cluster");
+      expect(query).toContain("ReplicatedReplacingMergeTree");
+      expect(query).toContain("default.__clicksuite_migrations");
     });
 
-    it('should handle errors during table creation', async () => {
-      const error = new Error('Database connection failed');
+    it("should handle errors during table creation", async () => {
+      const error = new Error("Database connection failed");
       mockClient.command.mockRejectedValue(error);
 
-      await expect(db.initMigrationsTable()).rejects.toThrow('Database connection failed');
+      await expect(db.initMigrationsTable()).rejects.toThrow(
+        "Database connection failed",
+      );
     });
   });
 
-  describe('getAppliedMigrations', () => {
-    it('should return applied migrations', async () => {
+  describe("getAppliedMigrations", () => {
+    it("should return applied migrations", async () => {
       const mockMigrations = [
-        { version: '20240101120000', active: 1, created_at: '2024-01-01T12:00:00Z' },
-        { version: '20240102120000', active: 1, created_at: '2024-01-02T12:00:00Z' }
+        {
+          version: "20240101120000",
+          active: 1,
+          created_at: "2024-01-01T12:00:00Z",
+        },
+        {
+          version: "20240102120000",
+          active: 1,
+          created_at: "2024-01-02T12:00:00Z",
+        },
       ];
 
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: mockMigrations })
+        json: jest.fn().mockResolvedValue({ data: mockMigrations }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getAppliedMigrations();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SELECT version, active, created_at FROM default.__clicksuite_migrations WHERE active = 1 ORDER BY version ASC'
+        query:
+          "SELECT version, active, created_at FROM default.__clicksuite_migrations WHERE active = 1 ORDER BY version ASC",
       });
       expect(result).toEqual(mockMigrations);
     });
 
-    it('should return empty array on error', async () => {
-      mockClient.query.mockRejectedValue(new Error('Query failed'));
+    it("should return empty array on error", async () => {
+      mockClient.query.mockRejectedValue(new Error("Query failed"));
 
       const result = await db.getAppliedMigrations();
 
@@ -153,46 +168,55 @@ describe('Db', () => {
     });
   });
 
-  describe('getAllMigrationRecords', () => {
-    it('should return all migration records', async () => {
+  describe("getAllMigrationRecords", () => {
+    it("should return all migration records", async () => {
       const mockRecords = [
-        { version: '20240101120000', active: 1, created_at: '2024-01-01T12:00:00Z' },
-        { version: '20240102120000', active: 0, created_at: '2024-01-02T12:00:00Z' }
+        {
+          version: "20240101120000",
+          active: 1,
+          created_at: "2024-01-01T12:00:00Z",
+        },
+        {
+          version: "20240102120000",
+          active: 0,
+          created_at: "2024-01-02T12:00:00Z",
+        },
       ];
 
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: mockRecords })
+        json: jest.fn().mockResolvedValue({ data: mockRecords }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getAllMigrationRecords();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SELECT version, active, created_at FROM default.__clicksuite_migrations ORDER BY version ASC'
+        query:
+          "SELECT version, active, created_at FROM default.__clicksuite_migrations ORDER BY version ASC",
       });
       expect(result).toEqual(mockRecords);
     });
 
-    it('should return empty array and log error on failure', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const error = new Error('Database connection failed');
+    it("should return empty array and log error on failure", async () => {
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+      const error = new Error("Database connection failed");
       mockClient.query.mockRejectedValue(error);
 
       const result = await db.getAllMigrationRecords();
 
       expect(result).toEqual([]);
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Failed to get all migration records:'),
-        error
+        expect.stringContaining("❌ Failed to get all migration records:"),
+        error,
       );
-      
+
       consoleSpy.mockRestore();
     });
   });
 
-  describe('executeMigration', () => {
-    it('should execute migration query with settings', async () => {
-      const query = 'CREATE TABLE test_table';
+  describe("executeMigration", () => {
+    it("should execute migration query with settings", async () => {
+      const query = "CREATE TABLE test_table";
       const settings = { max_execution_time: 60 };
       mockClient.command.mockResolvedValue(undefined);
 
@@ -202,13 +226,13 @@ describe('Db', () => {
         query,
         clickhouse_settings: {
           ...settings,
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
     });
 
-    it('should execute migration query without settings', async () => {
-      const query = 'CREATE TABLE test_table';
+    it("should execute migration query without settings", async () => {
+      const query = "CREATE TABLE test_table";
       mockClient.command.mockResolvedValue(undefined);
 
       await db.executeMigration(query);
@@ -216,48 +240,49 @@ describe('Db', () => {
       expect(mockClient.command).toHaveBeenCalledWith({
         query,
         clickhouse_settings: {
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
     });
 
-    it('should handle execution errors', async () => {
-      const query = 'INVALID SQL';
-      const error = new Error('Syntax error');
+    it("should handle execution errors", async () => {
+      const query = "INVALID SQL";
+      const error = new Error("Syntax error");
       mockClient.command.mockRejectedValue(error);
 
-      await expect(db.executeMigration(query)).rejects.toThrow('Syntax error');
+      await expect(db.executeMigration(query)).rejects.toThrow("Syntax error");
     });
 
-    it('should execute multiple queries separated by semicolons', async () => {
-      const query = 'CREATE TABLE test_table1; CREATE TABLE test_table2; INSERT INTO test_table1 VALUES (1)';
+    it("should execute multiple queries separated by semicolons", async () => {
+      const query =
+        "CREATE TABLE test_table1; CREATE TABLE test_table2; INSERT INTO test_table1 VALUES (1)";
       mockClient.command.mockResolvedValue(undefined);
 
       await db.executeMigration(query);
 
       expect(mockClient.command).toHaveBeenCalledTimes(3);
       expect(mockClient.command).toHaveBeenNthCalledWith(1, {
-        query: 'CREATE TABLE test_table1',
+        query: "CREATE TABLE test_table1",
         clickhouse_settings: {
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
       expect(mockClient.command).toHaveBeenNthCalledWith(2, {
-        query: 'CREATE TABLE test_table2',
+        query: "CREATE TABLE test_table2",
         clickhouse_settings: {
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
       expect(mockClient.command).toHaveBeenNthCalledWith(3, {
-        query: 'INSERT INTO test_table1 VALUES (1)',
+        query: "INSERT INTO test_table1 VALUES (1)",
         clickhouse_settings: {
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
     });
 
-    it('should execute multiple queries with settings', async () => {
-      const query = 'CREATE TABLE test_table1; CREATE TABLE test_table2';
+    it("should execute multiple queries with settings", async () => {
+      const query = "CREATE TABLE test_table1; CREATE TABLE test_table2";
       const settings = { max_execution_time: 60 };
       mockClient.command.mockResolvedValue(undefined);
 
@@ -265,48 +290,48 @@ describe('Db', () => {
 
       expect(mockClient.command).toHaveBeenCalledTimes(2);
       expect(mockClient.command).toHaveBeenNthCalledWith(1, {
-        query: 'CREATE TABLE test_table1',
+        query: "CREATE TABLE test_table1",
         clickhouse_settings: {
           ...settings,
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
       expect(mockClient.command).toHaveBeenNthCalledWith(2, {
-        query: 'CREATE TABLE test_table2',
+        query: "CREATE TABLE test_table2",
         clickhouse_settings: {
           ...settings,
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
     });
 
-    it('should handle empty queries in multiple query string', async () => {
-      const query = 'CREATE TABLE test_table1;; ; CREATE TABLE test_table2;';
+    it("should handle empty queries in multiple query string", async () => {
+      const query = "CREATE TABLE test_table1;; ; CREATE TABLE test_table2;";
       mockClient.command.mockResolvedValue(undefined);
 
       await db.executeMigration(query);
 
       expect(mockClient.command).toHaveBeenCalledTimes(2);
       expect(mockClient.command).toHaveBeenNthCalledWith(1, {
-        query: 'CREATE TABLE test_table1',
+        query: "CREATE TABLE test_table1",
         clickhouse_settings: {
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
       expect(mockClient.command).toHaveBeenNthCalledWith(2, {
-        query: 'CREATE TABLE test_table2',
+        query: "CREATE TABLE test_table2",
         clickhouse_settings: {
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
     });
 
-    it('should handle queries with whitespace and newlines', async () => {
+    it("should handle queries with whitespace and newlines", async () => {
       const query = `
         CREATE TABLE test_table1 (
           id UInt32
         );
-        
+
         CREATE TABLE test_table2 (
           name String
         );
@@ -317,21 +342,21 @@ describe('Db', () => {
 
       expect(mockClient.command).toHaveBeenCalledTimes(2);
       expect(mockClient.command).toHaveBeenNthCalledWith(1, {
-        query: 'CREATE TABLE test_table1 (\n          id UInt32\n        )',
+        query: "CREATE TABLE test_table1 (\n          id UInt32\n        )",
         clickhouse_settings: {
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
       expect(mockClient.command).toHaveBeenNthCalledWith(2, {
-        query: 'CREATE TABLE test_table2 (\n          name String\n        )',
+        query: "CREATE TABLE test_table2 (\n          name String\n        )",
         clickhouse_settings: {
-          wait_end_of_query: 1
-        }
+          wait_end_of_query: 1,
+        },
       });
     });
 
-    it('should do nothing when query is empty or only semicolons', async () => {
-      const query = ';;; ; ';
+    it("should do nothing when query is empty or only semicolons", async () => {
+      const query = ";;; ; ";
       mockClient.command.mockResolvedValue(undefined);
 
       await db.executeMigration(query);
@@ -340,86 +365,102 @@ describe('Db', () => {
     });
   });
 
-  describe('markMigrationApplied', () => {
-    it('should mark migration as applied', async () => {
-      const version = '20240101120000';
+  describe("markMigrationApplied", () => {
+    it("should mark migration as applied", async () => {
+      const version = "20240101120000";
       mockClient.insert.mockResolvedValue(undefined);
       mockClient.command.mockResolvedValue(undefined); // for optimize call
 
       await db.markMigrationApplied(version);
 
       expect(mockClient.insert).toHaveBeenCalledWith({
-        table: 'default.__clicksuite_migrations',
-        values: [{
-          version,
-          active: 1,
-          created_at: expect.any(String)
-        }],
-        format: 'JSONEachRow',
+        table: "default.__clicksuite_migrations",
+        values: [
+          {
+            version,
+            active: 1,
+            created_at: expect.any(String),
+          },
+        ],
+        format: "JSONEachRow",
         clickhouse_settings: {
-          date_time_input_format: 'best_effort'
-        }
+          date_time_input_format: "best_effort",
+        },
       });
     });
 
-    it('should handle marking errors', async () => {
-      const error = new Error('Insert failed');
+    it("should handle marking errors", async () => {
+      const error = new Error("Insert failed");
       mockClient.insert.mockRejectedValue(error);
 
-      await expect(db.markMigrationApplied('20240101120000')).rejects.toThrow('Insert failed');
+      await expect(db.markMigrationApplied("20240101120000")).rejects.toThrow(
+        "Insert failed",
+      );
     });
   });
 
-  describe('markMigrationRolledBack', () => {
-    it('should mark migration as rolled back', async () => {
-      const version = '20240101120000';
+  describe("markMigrationRolledBack", () => {
+    it("should mark migration as rolled back", async () => {
+      const version = "20240101120000";
       mockClient.insert.mockResolvedValue(undefined);
       mockClient.command.mockResolvedValue(undefined); // for optimize call
 
       await db.markMigrationRolledBack(version);
 
       expect(mockClient.insert).toHaveBeenCalledWith({
-        table: 'default.__clicksuite_migrations',
-        values: [{
-          version,
-          active: 0,
-          created_at: expect.any(String)
-        }],
-        format: 'JSONEachRow',
+        table: "default.__clicksuite_migrations",
+        values: [
+          {
+            version,
+            active: 0,
+            created_at: expect.any(String),
+          },
+        ],
+        format: "JSONEachRow",
         clickhouse_settings: {
-          date_time_input_format: 'best_effort'
-        }
+          date_time_input_format: "best_effort",
+        },
       });
     });
 
-    it('should handle rollback marking errors', async () => {
-      const error = new Error('Rollback failed');
+    it("should handle rollback marking errors", async () => {
+      const error = new Error("Rollback failed");
       mockClient.insert.mockRejectedValue(error);
 
-      await expect(db.markMigrationRolledBack('20240101120000')).rejects.toThrow('Rollback failed');
+      await expect(
+        db.markMigrationRolledBack("20240101120000"),
+      ).rejects.toThrow("Rollback failed");
     });
   });
 
-  describe('getLatestMigration', () => {
-    it('should return latest migration version', async () => {
+  describe("getLatestMigration", () => {
+    it("should return latest migration version", async () => {
       const mockMigrations = [
-        { version: '20240101120000', active: 1, created_at: '2024-01-01T12:00:00Z' },
-        { version: '20240102120000', active: 1, created_at: '2024-01-02T12:00:00Z' }
+        {
+          version: "20240101120000",
+          active: 1,
+          created_at: "2024-01-01T12:00:00Z",
+        },
+        {
+          version: "20240102120000",
+          active: 1,
+          created_at: "2024-01-02T12:00:00Z",
+        },
       ];
 
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: mockMigrations })
+        json: jest.fn().mockResolvedValue({ data: mockMigrations }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getLatestMigration();
 
-      expect(result).toBe('20240102120000');
+      expect(result).toBe("20240102120000");
     });
 
-    it('should return undefined when no migrations exist', async () => {
+    it("should return undefined when no migrations exist", async () => {
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: [] })
+        json: jest.fn().mockResolvedValue({ data: [] }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
@@ -429,24 +470,28 @@ describe('Db', () => {
     });
   });
 
-  describe('getDatabaseTables', () => {
-    it('should return list of tables', async () => {
-      const mockTables = [{ name: 'users', database: 'test_db' }, { name: 'orders', database: 'prod_db' }];
+  describe("getDatabaseTables", () => {
+    it("should return list of tables", async () => {
+      const mockTables = [
+        { name: "users", database: "test_db" },
+        { name: "orders", database: "prod_db" },
+      ];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: mockTables })
+        json: jest.fn().mockResolvedValue({ data: mockTables }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getDatabaseTables();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine NOT LIKE '%View' AND engine != 'MaterializedView'"
+        query:
+          "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine NOT LIKE '%View' AND engine != 'MaterializedView'",
       });
       expect(result).toEqual(mockTables);
     });
 
-    it('should return empty array on error', async () => {
-      mockClient.query.mockRejectedValue(new Error('Query failed'));
+    it("should return empty array on error", async () => {
+      mockClient.query.mockRejectedValue(new Error("Query failed"));
 
       const result = await db.getDatabaseTables();
 
@@ -454,90 +499,98 @@ describe('Db', () => {
     });
   });
 
-  describe('getDatabaseMaterializedViews', () => {
-    it('should return list of materialized views', async () => {
-      const mockViews = [{ name: 'user_stats_mv', database: 'test_db' }, { name: 'order_stats_mv', database: 'prod_db' }];
+  describe("getDatabaseMaterializedViews", () => {
+    it("should return list of materialized views", async () => {
+      const mockViews = [
+        { name: "user_stats_mv", database: "test_db" },
+        { name: "order_stats_mv", database: "prod_db" },
+      ];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: mockViews })
+        json: jest.fn().mockResolvedValue({ data: mockViews }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getDatabaseMaterializedViews();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine = 'MaterializedView'"
+        query:
+          "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine = 'MaterializedView'",
       });
       expect(result).toEqual(mockViews);
     });
 
-    it('should return empty array on error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const error = new Error('Materialized views query failed');
+    it("should return empty array on error", async () => {
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+      const error = new Error("Materialized views query failed");
       mockClient.query.mockRejectedValue(error);
 
       const result = await db.getDatabaseMaterializedViews();
 
       expect(result).toEqual([]);
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Failed to get materialized views:'),
-        error
+        expect.stringContaining("❌ Failed to get materialized views:"),
+        error,
       );
-      
+
       consoleSpy.mockRestore();
     });
   });
 
-  describe('getDatabaseDictionaries', () => {
-    it('should return list of dictionaries', async () => {
-      const mockDictionaries = [{ name: 'countries_dict', database: 'test_db' }, { name: 'languages_dict', database: 'prod_db' }];
+  describe("getDatabaseDictionaries", () => {
+    it("should return list of dictionaries", async () => {
+      const mockDictionaries = [
+        { name: "countries_dict", database: "test_db" },
+        { name: "languages_dict", database: "prod_db" },
+      ];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: mockDictionaries })
+        json: jest.fn().mockResolvedValue({ data: mockDictionaries }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
       const result = await db.getDatabaseDictionaries();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name, database FROM system.dictionaries WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')"
+        query:
+          "SELECT name, database FROM system.dictionaries WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')",
       });
       expect(result).toEqual(mockDictionaries);
     });
 
-    it('should return empty array on error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const error = new Error('Dictionaries query failed');
+    it("should return empty array on error", async () => {
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+      const error = new Error("Dictionaries query failed");
       mockClient.query.mockRejectedValue(error);
 
       const result = await db.getDatabaseDictionaries();
 
       expect(result).toEqual([]);
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Failed to get dictionaries:'),
-        error
+        expect.stringContaining("❌ Failed to get dictionaries:"),
+        error,
       );
-      
+
       consoleSpy.mockRestore();
     });
   });
 
-  describe('clearMigrationsTable', () => {
-    it('should clear migrations table without cluster', async () => {
+  describe("clearMigrationsTable", () => {
+    it("should clear migrations table without cluster", async () => {
       mockClient.command.mockResolvedValue(undefined);
 
       await db.clearMigrationsTable();
 
       expect(mockClient.command).toHaveBeenCalledWith({
-        query: 'TRUNCATE TABLE IF EXISTS default.__clicksuite_migrations ',
-        clickhouse_settings: { wait_end_of_query: 1 }
+        query: "TRUNCATE TABLE IF EXISTS default.__clicksuite_migrations ",
+        clickhouse_settings: { wait_end_of_query: 1 },
       });
     });
 
-    it('should clear migrations table with cluster', async () => {
+    it("should clear migrations table with cluster", async () => {
       const clusterContext: Context = {
-        url: 'http://default@localhost:8123/test_db',
-        cluster: 'test_cluster',
-        migrationsDir: '/tmp/migrations',
-        environment: 'test'
+        url: "http://default@localhost:8123/test_db",
+        cluster: "test_cluster",
+        migrationsDir: "/tmp/migrations",
+        environment: "test",
       };
       const clusterDb = new Db(clusterContext);
       mockClient.command.mockResolvedValue(undefined);
@@ -545,20 +598,20 @@ describe('Db', () => {
       await clusterDb.clearMigrationsTable();
 
       const query = mockClient.command.mock.calls[0][0].query;
-      expect(query).toContain('ON CLUSTER test_cluster');
-      expect(query).toContain('default.__clicksuite_migrations');
+      expect(query).toContain("ON CLUSTER test_cluster");
+      expect(query).toContain("default.__clicksuite_migrations");
     });
 
-    it('should handle clear errors', async () => {
-      const error = new Error('Clear failed');
+    it("should handle clear errors", async () => {
+      const error = new Error("Clear failed");
       mockClient.command.mockRejectedValue(error);
 
-      await expect(db.clearMigrationsTable()).rejects.toThrow('Clear failed');
+      await expect(db.clearMigrationsTable()).rejects.toThrow("Clear failed");
     });
   });
 
-  describe('close', () => {
-    it('should close client connection', async () => {
+  describe("close", () => {
+    it("should close client connection", async () => {
       mockClient.close.mockResolvedValue(undefined);
 
       await db.close();
@@ -567,38 +620,40 @@ describe('Db', () => {
     });
   });
 
-  describe('optimizeMigrationTable', () => {
-    it('should optimize migrations table', async () => {
+  describe("optimizeMigrationTable", () => {
+    it("should optimize migrations table", async () => {
       mockClient.command.mockResolvedValue(undefined);
 
       await db.optimizeMigrationTable();
 
       expect(mockClient.command).toHaveBeenCalledWith({
-        query: 'OPTIMIZE TABLE default.__clicksuite_migrations FINAL',
-        clickhouse_settings: { wait_end_of_query: 1 }
+        query: "OPTIMIZE TABLE default.__clicksuite_migrations FINAL",
+        clickhouse_settings: { wait_end_of_query: 1 },
       });
     });
 
-    it('should handle optimize errors gracefully', async () => {
-      const error = new Error('Optimize failed');
+    it("should handle optimize errors gracefully", async () => {
+      const error = new Error("Optimize failed");
       mockClient.command.mockRejectedValue(error);
 
-      await expect(db.optimizeMigrationTable()).rejects.toThrow('Optimize failed');
+      await expect(db.optimizeMigrationTable()).rejects.toThrow(
+        "Optimize failed",
+      );
     });
   });
 
-  describe('verbose logging', () => {
+  describe("verbose logging", () => {
     let consoleSpy: jest.SpyInstance;
 
     beforeEach(() => {
-      consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      consoleSpy = jest.spyOn(console, "log").mockImplementation();
     });
 
     afterEach(() => {
       consoleSpy.mockRestore();
     });
 
-    it('should log initMigrationsTable query when verbose is true', async () => {
+    it("should log initMigrationsTable query when verbose is true", async () => {
       const verboseContext = { ...context, verbose: true };
       const verboseDb = new Db(verboseContext);
       mockClient.command.mockResolvedValue(undefined);
@@ -606,12 +661,12 @@ describe('Db', () => {
       await verboseDb.initMigrationsTable();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Executing initMigrationsTable query:'),
-        expect.any(String)
+        expect.stringContaining("Executing initMigrationsTable query:"),
+        expect.any(String),
       );
     });
 
-    it('should not log initMigrationsTable query when verbose is false', async () => {
+    it("should not log initMigrationsTable query when verbose is false", async () => {
       const nonVerboseContext = { ...context, verbose: false };
       const nonVerboseDb = new Db(nonVerboseContext);
       mockClient.command.mockResolvedValue(undefined);
@@ -619,126 +674,130 @@ describe('Db', () => {
       await nonVerboseDb.initMigrationsTable();
 
       expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('Executing initMigrationsTable query:'),
-        expect.any(String)
+        expect.stringContaining("Executing initMigrationsTable query:"),
+        expect.any(String),
       );
     });
 
-    it('should log single migration query when verbose is true', async () => {
+    it("should log single migration query when verbose is true", async () => {
       const verboseContext = { ...context, verbose: true };
       const verboseDb = new Db(verboseContext);
       mockClient.command.mockResolvedValue(undefined);
 
-      await verboseDb.executeMigration('CREATE TABLE test');
+      await verboseDb.executeMigration("CREATE TABLE test");
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Executing migration query:'),
-        expect.any(String)
+        expect.stringContaining("Executing migration query:"),
+        expect.any(String),
       );
     });
 
-    it('should not log single migration query when verbose is false', async () => {
+    it("should not log single migration query when verbose is false", async () => {
       const nonVerboseContext = { ...context, verbose: false };
       const nonVerboseDb = new Db(nonVerboseContext);
       mockClient.command.mockResolvedValue(undefined);
 
-      await nonVerboseDb.executeMigration('CREATE TABLE test');
+      await nonVerboseDb.executeMigration("CREATE TABLE test");
 
       expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('Executing migration query:'),
-        expect.any(String)
+        expect.stringContaining("Executing migration query:"),
+        expect.any(String),
       );
     });
 
-    it('should log multiple migration queries when verbose is true', async () => {
+    it("should log multiple migration queries when verbose is true", async () => {
       const verboseContext = { ...context, verbose: true };
       const verboseDb = new Db(verboseContext);
       mockClient.command.mockResolvedValue(undefined);
 
-      await verboseDb.executeMigration('CREATE TABLE test1; CREATE TABLE test2');
+      await verboseDb.executeMigration(
+        "CREATE TABLE test1; CREATE TABLE test2",
+      );
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Executing 2 migration queries:')
+        expect.stringContaining("Executing 2 migration queries:"),
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Query 1/2:'),
-        expect.any(String)
+        expect.stringContaining("Query 1/2:"),
+        expect.any(String),
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Query 2/2:'),
-        expect.any(String)
+        expect.stringContaining("Query 2/2:"),
+        expect.any(String),
       );
     });
 
-    it('should not log multiple migration queries when verbose is false', async () => {
+    it("should not log multiple migration queries when verbose is false", async () => {
       const nonVerboseContext = { ...context, verbose: false };
       const nonVerboseDb = new Db(nonVerboseContext);
       mockClient.command.mockResolvedValue(undefined);
 
-      await nonVerboseDb.executeMigration('CREATE TABLE test1; CREATE TABLE test2');
+      await nonVerboseDb.executeMigration(
+        "CREATE TABLE test1; CREATE TABLE test2",
+      );
 
       expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('Executing 2 migration queries:')
+        expect.stringContaining("Executing 2 migration queries:"),
       );
     });
 
-    it('should log markMigrationApplied when verbose is true', async () => {
-      const verboseContext = { ...context, verbose: true };
-      const verboseDb = new Db(verboseContext);
-      mockClient.insert.mockResolvedValue(undefined);
-      mockClient.command.mockResolvedValue(undefined);
-
-      await verboseDb.markMigrationApplied('20240101120000');
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Marking migration applied with version:'),
-        expect.stringContaining('20240101120000')
-      );
-    });
-
-    it('should not log markMigrationApplied when verbose is false', async () => {
-      const nonVerboseContext = { ...context, verbose: false };
-      const nonVerboseDb = new Db(nonVerboseContext);
-      mockClient.insert.mockResolvedValue(undefined);
-      mockClient.command.mockResolvedValue(undefined);
-
-      await nonVerboseDb.markMigrationApplied('20240101120000');
-
-      expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('Marking migration applied with version:'),
-        expect.any(String)
-      );
-    });
-
-    it('should log markMigrationRolledBack when verbose is true', async () => {
+    it("should log markMigrationApplied when verbose is true", async () => {
       const verboseContext = { ...context, verbose: true };
       const verboseDb = new Db(verboseContext);
       mockClient.insert.mockResolvedValue(undefined);
       mockClient.command.mockResolvedValue(undefined);
 
-      await verboseDb.markMigrationRolledBack('20240101120000');
+      await verboseDb.markMigrationApplied("20240101120000");
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Marking migration rolled back for version:'),
-        expect.stringContaining('20240101120000')
+        expect.stringContaining("Marking migration applied with version:"),
+        expect.stringContaining("20240101120000"),
       );
     });
 
-    it('should not log markMigrationRolledBack when verbose is false', async () => {
+    it("should not log markMigrationApplied when verbose is false", async () => {
       const nonVerboseContext = { ...context, verbose: false };
       const nonVerboseDb = new Db(nonVerboseContext);
       mockClient.insert.mockResolvedValue(undefined);
       mockClient.command.mockResolvedValue(undefined);
 
-      await nonVerboseDb.markMigrationRolledBack('20240101120000');
+      await nonVerboseDb.markMigrationApplied("20240101120000");
 
       expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('Marking migration rolled back for version:'),
-        expect.any(String)
+        expect.stringContaining("Marking migration applied with version:"),
+        expect.any(String),
       );
     });
 
-    it('should log clearMigrationsTable when verbose is true', async () => {
+    it("should log markMigrationRolledBack when verbose is true", async () => {
+      const verboseContext = { ...context, verbose: true };
+      const verboseDb = new Db(verboseContext);
+      mockClient.insert.mockResolvedValue(undefined);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await verboseDb.markMigrationRolledBack("20240101120000");
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Marking migration rolled back for version:"),
+        expect.stringContaining("20240101120000"),
+      );
+    });
+
+    it("should not log markMigrationRolledBack when verbose is false", async () => {
+      const nonVerboseContext = { ...context, verbose: false };
+      const nonVerboseDb = new Db(nonVerboseContext);
+      mockClient.insert.mockResolvedValue(undefined);
+      mockClient.command.mockResolvedValue(undefined);
+
+      await nonVerboseDb.markMigrationRolledBack("20240101120000");
+
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("Marking migration rolled back for version:"),
+        expect.any(String),
+      );
+    });
+
+    it("should log clearMigrationsTable when verbose is true", async () => {
       const verboseContext = { ...context, verbose: true };
       const verboseDb = new Db(verboseContext);
       mockClient.command.mockResolvedValue(undefined);
@@ -746,12 +805,12 @@ describe('Db', () => {
       await verboseDb.clearMigrationsTable();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Clearing migrations table:'),
-        expect.any(String)
+        expect.stringContaining("Clearing migrations table:"),
+        expect.any(String),
       );
     });
 
-    it('should not log clearMigrationsTable when verbose is false', async () => {
+    it("should not log clearMigrationsTable when verbose is false", async () => {
       const nonVerboseContext = { ...context, verbose: false };
       const nonVerboseDb = new Db(nonVerboseContext);
       mockClient.command.mockResolvedValue(undefined);
@@ -759,242 +818,412 @@ describe('Db', () => {
       await nonVerboseDb.clearMigrationsTable();
 
       expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('Clearing migrations table:'),
-        expect.any(String)
+        expect.stringContaining("Clearing migrations table:"),
+        expect.any(String),
       );
     });
   });
 
-  describe('getDatabaseSchema', () => {
+  describe("getDatabaseSchema", () => {
+    it("should skip tables with names starting with periods", async () => {
+      const mockTables = [
+        { name: ".inner.table", database: "test_db" },
+        { name: "normal_table", database: "test_db" },
+      ];
+      const mockTablesResultSet = {
+        json: jest.fn().mockResolvedValue({ data: mockTables }),
+      };
+      const mockViewsResultSet = {
+        json: jest.fn().mockResolvedValue({ data: [] }),
+      };
+      const mockDictionariesResultSet = {
+        json: jest.fn().mockResolvedValue({ data: [] }),
+      };
+      const mockCreateTableResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: [{ statement: "CREATE TABLE normal_table (id UInt64)" }],
+        }),
+      };
 
-    it('should handle errors when getting CREATE statements for tables', async () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+      mockClient.query
+        .mockResolvedValueOnce(mockTablesResultSet) // getDatabaseTables
+        .mockResolvedValueOnce(mockCreateTableResponse) // getCreateTableQuery for normal_table
+        .mockResolvedValueOnce(mockViewsResultSet) // getDatabaseMaterializedViews
+        .mockResolvedValueOnce(mockDictionariesResultSet); // getDatabaseDictionaries
+
+      const result = await db.getDatabaseSchema();
+
+      // Should only have the normal_table, not the .inner.table
+      expect(result).toEqual({
+        "table/test_db.normal_table": "CREATE TABLE normal_table (id UInt64)",
+      });
+
+      // Should call query 4 times: 3 for getting lists + 1 for CREATE TABLE
+      expect(mockClient.query).toHaveBeenCalledTimes(4);
+    });
+
+    it("should skip views with names starting with periods", async () => {
+      const mockViews = [
+        { name: ".inner.view", database: "test_db" },
+        { name: "normal_view", database: "test_db" },
+      ];
+      const mockTablesResultSet = {
+        json: jest.fn().mockResolvedValue({ data: [] }),
+      };
+      const mockViewsResultSet = {
+        json: jest.fn().mockResolvedValue({ data: mockViews }),
+      };
+      const mockDictionariesResultSet = {
+        json: jest.fn().mockResolvedValue({ data: [] }),
+      };
+      const mockCreateViewResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: [
+            { statement: "CREATE MATERIALIZED VIEW normal_view (id UInt64)" },
+          ],
+        }),
+      };
+
+      mockClient.query
+        .mockResolvedValueOnce(mockTablesResultSet) // getDatabaseTables
+        .mockResolvedValueOnce(mockViewsResultSet) // getDatabaseMaterializedViews
+        .mockResolvedValueOnce(mockCreateViewResponse) // getCreateTableQuery for normal_view
+        .mockResolvedValueOnce(mockDictionariesResultSet); // getDatabaseDictionaries
+
+      const result = await db.getDatabaseSchema();
+
+      // Should only have the normal_view, not the .inner.view
+      expect(result).toEqual({
+        "view/test_db.normal_view":
+          "CREATE MATERIALIZED VIEW normal_view (id UInt64)",
+      });
+
+      // Should call query 4 times: 3 for getting lists + 1 for CREATE VIEW
+      expect(mockClient.query).toHaveBeenCalledTimes(4);
+    });
+
+    it("should skip dictionaries with names starting with periods", async () => {
+      const mockDictionaries = [
+        { name: ".inner.dict", database: "test_db" },
+        { name: "normal_dict", database: "test_db" },
+      ];
+      const mockDictionariesResultSet = {
+        json: jest.fn().mockResolvedValue({ data: mockDictionaries }),
+      };
+      const mockCreateDictResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: [{ statement: "CREATE DICTIONARY normal_dict (id UInt64)" }],
+        }),
+      };
+
+      mockClient.query
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({ data: [] }),
+        }) // getDatabaseTables
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({ data: [] }),
+        }) // getDatabaseMaterializedViews
+        .mockResolvedValueOnce(mockDictionariesResultSet) // getDatabaseDictionaries
+        .mockResolvedValueOnce(mockCreateDictResponse); // getCreateTableQuery for normal_dict
+
+      const result = await db.getDatabaseSchema();
+
+      // Should only have the normal_dict, not the .inner.dict
+      expect(result).toEqual({
+        "dictionary/test_db.normal_dict":
+          "CREATE DICTIONARY normal_dict (id UInt64)",
+      });
+
+      // Should only call getCreateTableQuery once (for normal_dict)
+      expect(mockClient.query).toHaveBeenCalledTimes(4);
+    });
+
+    it("should handle errors when getting CREATE statements for tables", async () => {
+      const consoleSpy = jest.spyOn(console, "warn").mockImplementation();
+
       // Mock with one table that will fail
-      const mockTables = [{ name: 'bad_table', database: 'test_db' }];
-      const mockTablesResultSet = { json: jest.fn().mockResolvedValue({ data: mockTables }) };
-      
+      const mockTables = [{ name: "bad_table", database: "test_db" }];
+      const mockTablesResultSet = {
+        json: jest.fn().mockResolvedValue({ data: mockTables }),
+      };
+
       mockClient.query
-        .mockResolvedValueOnce(mockTablesResultSet)     // getDatabaseTables succeeds
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseMaterializedViews
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseDictionaries
-        .mockRejectedValueOnce(new Error('CREATE TABLE failed'));  // getCreateTableQuery fails
+        .mockResolvedValueOnce(mockTablesResultSet) // getDatabaseTables succeeds
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({ data: [] }),
+        }) // getDatabaseMaterializedViews
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({ data: [] }),
+        }) // getDatabaseDictionaries
+        .mockRejectedValueOnce(new Error("CREATE TABLE failed")); // getCreateTableQuery fails
 
       const result = await db.getDatabaseSchema();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('⚠️ Could not get CREATE TABLE for test_db.bad_table'),
-        expect.any(Error)
+        expect.stringContaining(
+          "⚠️ Could not get CREATE TABLE for test_db.bad_table",
+        ),
+        expect.any(Error),
       );
-      
+
       expect(result).toEqual({});
-      
+
       consoleSpy.mockRestore();
     });
 
-    it('should handle errors when getting CREATE statements for views', async () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+    it("should handle errors when getting CREATE statements for views", async () => {
+      const consoleSpy = jest.spyOn(console, "warn").mockImplementation();
+
       // Mock with one view that will fail
-      const mockViews = [{ name: 'bad_view', database: 'test_db' }];
-      const mockViewsResultSet = { json: jest.fn().mockResolvedValue({ data: mockViews }) };
-      
+      const mockViews = [{ name: "bad_view", database: "test_db" }];
+      const mockViewsResultSet = {
+        json: jest.fn().mockResolvedValue({ data: mockViews }),
+      };
+
       mockClient.query
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseTables
-        .mockResolvedValueOnce(mockViewsResultSet)     // getDatabaseMaterializedViews succeeds
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseDictionaries
-        .mockRejectedValueOnce(new Error('CREATE VIEW failed'));  // getCreateTableQuery fails
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({ data: [] }),
+        }) // getDatabaseTables
+        .mockResolvedValueOnce(mockViewsResultSet) // getDatabaseMaterializedViews succeeds
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({ data: [] }),
+        }) // getDatabaseDictionaries
+        .mockRejectedValueOnce(new Error("CREATE VIEW failed")); // getCreateTableQuery fails
 
       const result = await db.getDatabaseSchema();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('⚠️ Could not get CREATE VIEW for test_db.bad_view'),
-        expect.any(Error)
+        expect.stringContaining(
+          "⚠️ Could not get CREATE VIEW for test_db.bad_view",
+        ),
+        expect.any(Error),
       );
-      
+
       expect(result).toEqual({});
-      
+
       consoleSpy.mockRestore();
     });
 
-    it('should handle errors when getting CREATE statements for dictionaries', async () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+    it("should handle errors when getting CREATE statements for dictionaries", async () => {
+      const consoleSpy = jest.spyOn(console, "warn").mockImplementation();
+
       // Mock with one dictionary that will fail
-      const mockDictionaries = [{ name: 'bad_dict', database: 'test_db' }];
-      const mockDictionariesResultSet = { json: jest.fn().mockResolvedValue({ data: mockDictionaries }) };
-      
+      const mockDictionaries = [{ name: "bad_dict", database: "test_db" }];
+      const mockDictionariesResultSet = {
+        json: jest.fn().mockResolvedValue({ data: mockDictionaries }),
+      };
+
       mockClient.query
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseTables
-        .mockResolvedValueOnce({ json: jest.fn().mockResolvedValue({ data: [] }) })  // getDatabaseMaterializedViews
-        .mockResolvedValueOnce(mockDictionariesResultSet)     // getDatabaseDictionaries succeeds
-        .mockRejectedValueOnce(new Error('CREATE DICTIONARY failed'));  // getCreateTableQuery fails
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({ data: [] }),
+        }) // getDatabaseTables
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({ data: [] }),
+        }) // getDatabaseMaterializedViews
+        .mockResolvedValueOnce(mockDictionariesResultSet) // getDatabaseDictionaries succeeds
+        .mockRejectedValueOnce(new Error("CREATE DICTIONARY failed")); // getCreateTableQuery fails
 
       const result = await db.getDatabaseSchema();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('⚠️ Could not get CREATE DICTIONARY for test_db.bad_dict'),
-        expect.any(Error)
+        expect.stringContaining(
+          "⚠️ Could not get CREATE DICTIONARY for test_db.bad_dict",
+        ),
+        expect.any(Error),
       );
-      
+
       expect(result).toEqual({});
-      
+
       consoleSpy.mockRestore();
     });
   });
 
-  describe('getDatabaseTablesForDb', () => {
-    it('should return list of tables for specific database', async () => {
-      const mockTables = [{ name: 'users' }, { name: 'orders' }];
+  describe("getDatabaseTablesForDb", () => {
+    it("should return list of tables for specific database", async () => {
+      const mockTables = [{ name: "users" }, { name: "orders" }];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: mockTables })
+        json: jest.fn().mockResolvedValue({ data: mockTables }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
-      const result = await db.getDatabaseTablesForDb('custom_db');
+      const result = await db.getDatabaseTablesForDb("custom_db");
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'"
+        query:
+          "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'",
       });
       expect(result).toEqual(mockTables);
     });
 
-    it('should return empty array on error', async () => {
-      mockClient.query.mockRejectedValue(new Error('Query failed'));
+    it("should return empty array on error", async () => {
+      mockClient.query.mockRejectedValue(new Error("Query failed"));
 
-      const result = await db.getDatabaseTablesForDb('custom_db');
+      const result = await db.getDatabaseTablesForDb("custom_db");
 
       expect(result).toEqual([]);
     });
   });
 
-  describe('getDatabaseMaterializedViewsForDb', () => {
-    it('should return list of materialized views for specific database', async () => {
-      const mockViews = [{ name: 'user_stats_mv' }, { name: 'order_stats_mv' }];
+  describe("getDatabaseMaterializedViewsForDb", () => {
+    it("should return list of materialized views for specific database", async () => {
+      const mockViews = [{ name: "user_stats_mv" }, { name: "order_stats_mv" }];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: mockViews })
+        json: jest.fn().mockResolvedValue({ data: mockViews }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
-      const result = await db.getDatabaseMaterializedViewsForDb('custom_db');
+      const result = await db.getDatabaseMaterializedViewsForDb("custom_db");
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine = 'MaterializedView'"
+        query:
+          "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine = 'MaterializedView'",
       });
       expect(result).toEqual(mockViews);
     });
 
-    it('should return empty array on error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const error = new Error('Materialized views query failed');
+    it("should return empty array on error", async () => {
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+      const error = new Error("Materialized views query failed");
       mockClient.query.mockRejectedValue(error);
 
-      const result = await db.getDatabaseMaterializedViewsForDb('custom_db');
+      const result = await db.getDatabaseMaterializedViewsForDb("custom_db");
 
       expect(result).toEqual([]);
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Failed to get materialized views for database custom_db:'),
-        error
+        expect.stringContaining(
+          "❌ Failed to get materialized views for database custom_db:",
+        ),
+        error,
       );
-      
+
       consoleSpy.mockRestore();
     });
   });
 
-  describe('getDatabaseDictionariesForDb', () => {
-    it('should return list of dictionaries for specific database', async () => {
-      const mockDictionaries = [{ name: 'countries_dict' }, { name: 'languages_dict' }];
+  describe("getDatabaseDictionariesForDb", () => {
+    it("should return list of dictionaries for specific database", async () => {
+      const mockDictionaries = [
+        { name: "countries_dict" },
+        { name: "languages_dict" },
+      ];
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: mockDictionaries })
+        json: jest.fn().mockResolvedValue({ data: mockDictionaries }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
-      const result = await db.getDatabaseDictionariesForDb('custom_db');
+      const result = await db.getDatabaseDictionariesForDb("custom_db");
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.dictionaries WHERE database = 'custom_db'"
+        query:
+          "SELECT name FROM system.dictionaries WHERE database = 'custom_db'",
       });
       expect(result).toEqual(mockDictionaries);
     });
 
-    it('should return empty array on error', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const error = new Error('Dictionaries query failed');
+    it("should return empty array on error", async () => {
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+      const error = new Error("Dictionaries query failed");
       mockClient.query.mockRejectedValue(error);
 
-      const result = await db.getDatabaseDictionariesForDb('custom_db');
+      const result = await db.getDatabaseDictionariesForDb("custom_db");
 
       expect(result).toEqual([]);
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Failed to get dictionaries for database custom_db:'),
-        error
+        expect.stringContaining(
+          "❌ Failed to get dictionaries for database custom_db:",
+        ),
+        error,
       );
-      
+
       consoleSpy.mockRestore();
     });
   });
 
-  describe('getCreateTableQueryForDb', () => {
-    it('should handle materialized views with TABLE query type', async () => {
+  describe("getCreateTableQueryForDb", () => {
+    it("should handle materialized views with TABLE query type", async () => {
       const mockResponse = `CREATE MATERIALIZED VIEW test_view\\n(\\n    \`id\` UInt64\\n)\\nENGINE = MergeTree()\\nORDER BY id`;
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: [{ statement: mockResponse }] })
+        json: jest
+          .fn()
+          .mockResolvedValue({ data: [{ statement: mockResponse }] }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
-      const result = await db.getCreateTableQueryForDb('test_view', 'test_db', 'VIEW');
+      const result = await db.getCreateTableQueryForDb(
+        "test_view",
+        "test_db",
+        "VIEW",
+      );
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SHOW CREATE TABLE test_db.test_view'
+        query: "SHOW CREATE TABLE test_db.test_view",
       });
       // Verify that escape characters are properly converted
-      expect(result).toContain('\n');
-      expect(result).not.toContain('\\n');
-      expect(result).toContain('CREATE MATERIALIZED VIEW test_view');
+      expect(result).toContain("\n");
+      expect(result).not.toContain("\\n");
+      expect(result).toContain("CREATE MATERIALIZED VIEW test_view");
     });
 
-    it('should handle tables with TABLE query type', async () => {
+    it("should handle tables with TABLE query type", async () => {
       const mockResponse = `CREATE TABLE test_table\\n(\\n    \`id\` UInt64\\n)\\nENGINE = MergeTree()\\nORDER BY id`;
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: [{ statement: mockResponse }] })
+        json: jest
+          .fn()
+          .mockResolvedValue({ data: [{ statement: mockResponse }] }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
-      const result = await db.getCreateTableQueryForDb('test_table', 'test_db', 'TABLE');
+      const result = await db.getCreateTableQueryForDb(
+        "test_table",
+        "test_db",
+        "TABLE",
+      );
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SHOW CREATE TABLE test_db.test_table'
+        query: "SHOW CREATE TABLE test_db.test_table",
       });
-      expect(result).toContain('\n');
-      expect(result).not.toContain('\\n');
+      expect(result).toContain("\n");
+      expect(result).not.toContain("\\n");
     });
 
-    it('should handle dictionaries with DICTIONARY query type', async () => {
+    it("should handle dictionaries with DICTIONARY query type", async () => {
       const mockResponse = `CREATE DICTIONARY test_dict\\n(\\n    \`id\` UInt64\\n)\\nPRIMARY KEY id\\nSOURCE(CLICKHOUSE(DB \\'test\\' TABLE \\'source\\'))\\nLIFETIME(600)`;
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: [{ statement: mockResponse }] })
+        json: jest
+          .fn()
+          .mockResolvedValue({ data: [{ statement: mockResponse }] }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
-      const result = await db.getCreateTableQueryForDb('test_dict', 'test_db', 'DICTIONARY');
+      const result = await db.getCreateTableQueryForDb(
+        "test_dict",
+        "test_db",
+        "DICTIONARY",
+      );
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: 'SHOW CREATE DICTIONARY test_db.test_dict'
+        query: "SHOW CREATE DICTIONARY test_db.test_dict",
       });
-      expect(result).toContain('\n');
-      expect(result).not.toContain('\\n');
+      expect(result).toContain("\n");
+      expect(result).not.toContain("\\n");
       expect(result).toContain("'test'");
       expect(result).not.toContain("\\'test\\'");
     });
 
-    it('should unescape quotes and backslashes properly', async () => {
+    it("should unescape quotes and backslashes properly", async () => {
       const mockResponse = `CREATE TABLE test\\n(\\n    \`name\` String DEFAULT \\'test\\',\\n    \`path\` String DEFAULT \\'C:\\\\\\\\test\\'\\n)`;
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: [{ statement: mockResponse }] })
+        json: jest
+          .fn()
+          .mockResolvedValue({ data: [{ statement: mockResponse }] }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
-      const result = await db.getCreateTableQueryForDb('test', 'test_db', 'TABLE');
+      const result = await db.getCreateTableQueryForDb(
+        "test",
+        "test_db",
+        "TABLE",
+      );
 
       expect(result).toContain("DEFAULT 'test'");
       expect(result).toContain("DEFAULT 'C:\\\\test'");
@@ -1002,31 +1231,37 @@ describe('Db', () => {
       expect(result).not.toContain("\\\\\\\\");
     });
 
-    it('should handle verbose logging', async () => {
+    it("should handle verbose logging", async () => {
       const verboseContext = { ...context, verbose: true };
       const verboseDb = new Db(verboseContext);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      
+      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
+
       const mockResponse = `CREATE TABLE test\\n(\\n    \`id\` UInt64\\n)`;
       const mockResultSet = {
-        json: jest.fn().mockResolvedValue({ data: [{ statement: mockResponse }] })
+        json: jest
+          .fn()
+          .mockResolvedValue({ data: [{ statement: mockResponse }] }),
       };
       mockClient.query.mockResolvedValue(mockResultSet);
 
-      await verboseDb.getCreateTableQueryForDb('test', 'test_db', 'TABLE');
+      await verboseDb.getCreateTableQueryForDb("test", "test_db", "TABLE");
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('🔍  Executing schema query: SHOW CREATE TABLE test_db.test')
+        expect.stringContaining(
+          "🔍  Executing schema query: SHOW CREATE TABLE test_db.test",
+        ),
       );
-      
+
       consoleSpy.mockRestore();
     });
 
-    it('should handle query execution errors', async () => {
-      const error = new Error('Query failed');
+    it("should handle query execution errors", async () => {
+      const error = new Error("Query failed");
       mockClient.query.mockRejectedValue(error);
 
-      await expect(db.getCreateTableQueryForDb('test', 'test_db', 'TABLE')).rejects.toThrow('Query failed');
+      await expect(
+        db.getCreateTableQueryForDb("test", "test_db", "TABLE"),
+      ).rejects.toThrow("Query failed");
     });
   });
 });
