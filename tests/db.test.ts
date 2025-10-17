@@ -440,7 +440,7 @@ describe('Db', () => {
       const result = await db.getDatabaseTables();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine NOT LIKE '%View' AND engine != 'MaterializedView' AND table NOT LIKE '%.tmp%'"
+        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine NOT LIKE '%View' AND engine != 'MaterializedView' AND name NOT LIKE '%.tmp%'"
       });
       expect(result).toEqual(mockTables);
     });
@@ -465,7 +465,7 @@ describe('Db', () => {
       const result = await db.getDatabaseMaterializedViews();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine = 'MaterializedView' AND table NOT LIKE '%.tmp%'"
+        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine = 'MaterializedView' AND name NOT LIKE '%.tmp%'"
       });
       expect(result).toEqual(mockViews);
     });
