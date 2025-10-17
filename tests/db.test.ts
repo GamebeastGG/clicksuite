@@ -440,7 +440,7 @@ describe('Db', () => {
       const result = await db.getDatabaseTables();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine NOT LIKE '%View' AND engine != 'MaterializedView'"
+        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine NOT LIKE '%View' AND engine != 'MaterializedView' AND table NOT LIKE '.tmp%'"
       });
       expect(result).toEqual(mockTables);
     });
@@ -498,7 +498,7 @@ describe('Db', () => {
       const result = await db.getDatabaseDictionaries();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name, database FROM system.dictionaries WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')"
+        query: "SELECT name, database FROM system.dictionaries WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND name NOT LIKE '.tmp%'"
       });
       expect(result).toEqual(mockDictionaries);
     });
@@ -854,7 +854,7 @@ describe('Db', () => {
       const result = await db.getDatabaseTablesForDb('custom_db');
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'"
+        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine NOT LIKE '%View' AND engine != 'MaterializedView' AND name NOT LIKE '.tmp%'"
       });
       expect(result).toEqual(mockTables);
     });
@@ -879,7 +879,7 @@ describe('Db', () => {
       const result = await db.getDatabaseMaterializedViewsForDb('custom_db');
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine = 'MaterializedView'"
+        query: "SELECT name FROM system.tables WHERE database = 'custom_db' AND engine = 'MaterializedView' AND name NOT LIKE '.tmp%'"
       });
       expect(result).toEqual(mockViews);
     });
@@ -912,7 +912,7 @@ describe('Db', () => {
       const result = await db.getDatabaseDictionariesForDb('custom_db');
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name FROM system.dictionaries WHERE database = 'custom_db'"
+        query: "SELECT name FROM system.dictionaries WHERE database = 'custom_db' AND name NOT LIKE '.tmp%'"
       });
       expect(result).toEqual(mockDictionaries);
     });
