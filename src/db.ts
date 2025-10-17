@@ -199,18 +199,21 @@ export class Db {
     const schema: Record<string, string> = {};
     const tables = await this.getDatabaseTables();
     for (const table of tables) {
+        if (table.name.startsWith('.')) continue;
         try {
             schema[`table/${table.database}.${table.name}`] = await this.getCreateTableQueryForDb(table.name, table.database, 'TABLE');
         } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE TABLE for ${table.database}.${table.name}`), e); }
     }
     const views = await this.getDatabaseMaterializedViews();
     for (const view of views) {
+        if (view.name.startsWith('.')) continue;
         try {
             schema[`view/${view.database}.${view.name}`] = await this.getCreateTableQueryForDb(view.name, view.database, 'VIEW');
         } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE VIEW for ${view.database}.${view.name}`), e); }
     }
     const dictionaries = await this.getDatabaseDictionaries();
     for (const dict of dictionaries) {
+        if (dict.name.startsWith('.')) continue;
         try {
             schema[`dictionary/${dict.database}.${dict.name}`] = await this.getCreateTableQueryForDb(dict.name, dict.database, 'DICTIONARY');
         } catch (e) { console.warn(chalk.yellow(`⚠️ Could not get CREATE DICTIONARY for ${dict.database}.${dict.name}`), e); }
@@ -228,7 +231,7 @@ export class Db {
   async getDatabaseTables(): Promise<{name: string, database: string}[]> {
     try {
       const resultSet = await this.client.query({
-        query: `SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine NOT LIKE '%View' AND engine != 'MaterializedView' AND name NOT LIKE '%.tmp%'`,
+        query: `SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine NOT LIKE '%View' AND engine != 'MaterializedView'`,
       });
       const response = await resultSet.json();
       return response.data as {name: string, database: string}[];
@@ -241,7 +244,7 @@ export class Db {
   async getDatabaseMaterializedViews(): Promise<{name: string, database: string}[]> {
      try {
       const resultSet = await this.client.query({
-        query: `SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine = 'MaterializedView' AND name NOT LIKE '%.tmp%'`,
+        query: `SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine = 'MaterializedView'`,
       });
       const response = await resultSet.json();
       return response.data as {name: string, database: string}[];
@@ -254,7 +257,7 @@ export class Db {
   async getDatabaseDictionaries(): Promise<{name: string, database: string}[]> {
     try {
       const resultSet = await this.client.query({
-        query: `SELECT name, database FROM system.dictionaries WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND name NOT LIKE '%.tmp%'`,
+        query: `SELECT name, database FROM system.dictionaries WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')`,
       });
       const response = await resultSet.json();
       return response.data as {name: string, database: string}[];
@@ -267,7 +270,7 @@ export class Db {
   async getDatabaseTablesForDb(database: string): Promise<{name: string}[]> {
     try {
       const resultSet = await this.client.query({
-        query: `SELECT name FROM system.tables WHERE database = '${database}' AND engine NOT LIKE '%View' AND engine != 'MaterializedView' AND name NOT LIKE '%.tmp%'`,
+        query: `SELECT name FROM system.tables WHERE database = '${database}' AND engine NOT LIKE '%View' AND engine != 'MaterializedView'`,
       });
       const response = await resultSet.json();
       return response.data as {name: string}[];
@@ -280,7 +283,7 @@ export class Db {
   async getDatabaseMaterializedViewsForDb(database: string): Promise<{name: string}[]> {
     try {
       const resultSet = await this.client.query({
-        query: `SELECT name FROM system.tables WHERE database = '${database}' AND engine = 'MaterializedView' AND name NOT LIKE '%.tmp%'`,
+        query: `SELECT name FROM system.tables WHERE database = '${database}' AND engine = 'MaterializedView'`,
       });
       const response = await resultSet.json();
       return response.data as {name: string}[];
@@ -293,7 +296,7 @@ export class Db {
   async getDatabaseDictionariesForDb(database: string): Promise<{name: string}[]> {
     try {
       const resultSet = await this.client.query({
-        query: `SELECT name FROM system.dictionaries WHERE database = '${database}' AND name NOT LIKE '%.tmp%'`,
+        query: `SELECT name FROM system.dictionaries WHERE database = '${database}'`,
       });
       const response = await resultSet.json();
       return response.data as {name: string}[];
