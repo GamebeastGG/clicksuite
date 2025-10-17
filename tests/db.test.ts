@@ -465,7 +465,7 @@ describe('Db', () => {
       const result = await db.getDatabaseMaterializedViews();
 
       expect(mockClient.query).toHaveBeenCalledWith({
-        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine = 'MaterializedView'"
+        query: "SELECT name, database FROM system.tables WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') AND engine = 'MaterializedView' AND table NOT LIKE '.tmp%'"
       });
       expect(result).toEqual(mockViews);
     });
