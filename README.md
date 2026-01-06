@@ -86,7 +86,7 @@ CLICKSUITE_ENVIRONMENT=production
 # Optional: Custom database for the migrations table (defaults to 'default')
 CLICKSUITE_MIGRATIONS_DATABASE=default
 
-# Optional: For cert based TLS
+# Optional: For cert based TLS (required when defining CLIENT_CERT_PATH and CLIENT_KEY_PATH)
 CA_CERT_PATH='{ca cert path}'
 
 # Optional: For cert based mutual TLS (required when defining CLIENT_KEY_PATH)
