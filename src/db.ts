@@ -31,11 +31,11 @@ export class Db {
     const keyPath = process.env[CLIENT_KEY_PATH_VAR_NAME];
 
     if ((certPath && !keyPath) || (!certPath && keyPath)) {
-      throw new Error('CLIENT_CERT_PATH and CLIENT_KEY_PATH must be provided together.');
+      throw new Error(`${CLIENT_CERT_PATH_VAR_NAME} and ${CLIENT_KEY_PATH_VAR_NAME} must be provided together.`);
     }
 
     if (!caCertPath && (certPath || keyPath)) {
-      throw new Error('CA_CERT_PATH must be provided when using CLIENT_CERT_PATH and CLIENT_KEY_PATH.');
+      throw new Error(`${CA_CERT_PATH_VAR_NAME} must be provided when using ${CLIENT_CERT_PATH_VAR_NAME} and ${CLIENT_KEY_PATH_VAR_NAME}.`);
     }
   }
 
