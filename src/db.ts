@@ -1,17 +1,73 @@
-import { createClient, ClickHouseClient } from '@clickhouse/client';
+import { createClient, ClickHouseClient, ClickHouseClientConfigOptions } from '@clickhouse/client';
+import fs from 'node:fs';
 import { Context } from './types';
 import chalk from 'chalk';
+
+const CA_CERT_PATH_VAR_NAME = 'CA_CERT_PATH';
+const CLIENT_CERT_PATH_VAR_NAME = 'CLIENT_CERT_PATH';
+const CLIENT_KEY_PATH_VAR_NAME = 'CLIENT_KEY_PATH';
+type TlsOptions = ClickHouseClientConfigOptions["tls"]
 
 export class Db {
   private client: ClickHouseClient;
   private context: Context;
 
   constructor(context: Context) {
+    this.validateCertEnvVars();
+
+    const tlsOptions = this.getTlsOptions();
+
     this.client = createClient({
       url: context.url,
+      ...(tlsOptions ? { tls: tlsOptions } : {}),
     });
 
     this.context = context;
+  }
+
+  private validateCertEnvVars(): void {
+    const caCertPath = process.env[CA_CERT_PATH_VAR_NAME];
+    const certPath = process.env[CLIENT_CERT_PATH_VAR_NAME];
+    const keyPath = process.env[CLIENT_KEY_PATH_VAR_NAME];
+
+    if ((certPath && !keyPath) || (!certPath && keyPath)) {
+      throw new Error(`${CLIENT_CERT_PATH_VAR_NAME} and ${CLIENT_KEY_PATH_VAR_NAME} must be provided together.`);
+    }
+
+    if (!caCertPath && (certPath || keyPath)) {
+      throw new Error(`${CA_CERT_PATH_VAR_NAME} must be provided when using ${CLIENT_CERT_PATH_VAR_NAME} and ${CLIENT_KEY_PATH_VAR_NAME}.`);
+    }
+  }
+
+  private getTlsOptions(): TlsOptions | undefined {
+    const caCertPath = process.env[CA_CERT_PATH_VAR_NAME];
+    const certPath = process.env[CLIENT_CERT_PATH_VAR_NAME];
+    const keyPath = process.env[CLIENT_KEY_PATH_VAR_NAME];
+
+    let tlsOptions: TlsOptions;
+
+    if (caCertPath) {
+      const caCert = this.readCertFileContents(CA_CERT_PATH_VAR_NAME);
+      if (certPath && keyPath) {
+        tlsOptions = {
+          ca_cert: caCert,
+          cert: this.readCertFileContents(CLIENT_CERT_PATH_VAR_NAME),
+          key: this.readCertFileContents(CLIENT_KEY_PATH_VAR_NAME),
+        };
+      } else {
+        tlsOptions = { ca_cert: caCert };
+      }
+    }
+    return tlsOptions;
+  }
+
+  private readCertFileContents(envVarName: string): NonSharedBuffer {
+    try {
+      return fs.readFileSync(process.env[envVarName]!);
+    } catch (error) {
+      console.error(chalk.bold.red(`❌ Failed to read contents of ${process.env[envVarName]} referenced by ${envVarName}:`), error)
+      throw error
+    }
   }
 
   async ping() {
@@ -82,10 +138,10 @@ export class Db {
       return [];
     }
   }
-  
+
   async getAllMigrationRecords(): Promise<Array<{ version: string, active: number, created_at: string }>> {
     try {
-      const migrationsDatabase = this.context.migrationsDatabase || 'default';  
+      const migrationsDatabase = this.context.migrationsDatabase || 'default';
       const resultSet = await this.client.query({
         query: `SELECT version, active, created_at FROM ${migrationsDatabase}.__clicksuite_migrations ORDER BY version ASC`,
       });
@@ -109,7 +165,7 @@ export class Db {
   async executeMigration(query: string, query_settings?: Record<string, any>) {
     try {
       const queries = this.splitQueries(query);
-      
+
       if (queries.length === 0) {
         console.warn(chalk.yellow('⚠️ No queries found to execute'));
         return;
@@ -305,7 +361,6 @@ export class Db {
       return [];
     }
   }
-  
 
   async getCreateTableQueryForDb(name: string, database: string, type: 'TABLE' | 'VIEW' | 'DICTIONARY'): Promise<string> {
     try {
@@ -322,7 +377,7 @@ export class Db {
       }
 
       const resultText = response.data[0].statement;
-      
+
       // Clean up the result text by replacing literal \n with actual newlines and unescaping quotes
       const cleanedText = resultText
         .trim()
@@ -330,7 +385,7 @@ export class Db {
         .replace(/\\'/g, "'")           // Unescape single quotes
         .replace(/\\"/g, '"')           // Unescape double quotes
         .replace(/\\\\/g, '\\');        // Unescape backslashes
-      
+
       return cleanedText;
     } catch (error) {
       console.error(chalk.bold.red(`❌  Failed to get create query for ${type} ${database}.${name}:`), error);
