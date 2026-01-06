@@ -27,7 +27,7 @@ function formatSQL(sql?: string, tableName?: string, databaseName?: string): str
     return sql;
   }
   let formatted = sql;
-  
+
   // First, replace table and database placeholders
   if (tableName) {
     formatted = formatted.replace(/\{table\}/g, tableName);
@@ -35,10 +35,10 @@ function formatSQL(sql?: string, tableName?: string, databaseName?: string): str
   if (databaseName) {
     formatted = formatted.replace(/\{database\}/g, databaseName);
   }
-  
+
   // Then, interpolate environment variables
   formatted = interpolateEnvVars(formatted);
-  
+
   return formatted;
 }
 
@@ -88,7 +88,7 @@ export class Runner {
             // Resolve settings: current env specific, then development (if aliased), then empty
             // js-yaml handles alias merging, so currentEnvConfig should already be merged if it used an alias.
             const querySettings = currentEnvConfig.settings || defaultEnvConfig.settings || {};
-            
+
             // Resolve SQL: current env specific, then development (if aliased)
             let upSQL = currentEnvConfig.up || defaultEnvConfig.up;
             let downSQL = currentEnvConfig.down || defaultEnvConfig.down;
@@ -98,7 +98,7 @@ export class Runner {
             const databaseName = rawContent.database;
             upSQL = formatSQL(upSQL, tableName, databaseName);
             downSQL = formatSQL(downSQL, tableName, databaseName);
-            
+
             migrationFiles.push({
               version,
               name,
@@ -275,7 +275,7 @@ production:
       let stateChalk = chalk.yellow;
       if (s.state === 'APPLIED') stateChalk = chalk.green;
       if (s.state === 'INACTIVE') stateChalk = chalk.gray;
-      
+
       const nameDisplay = s.name === 'N/A (DB only)' ? chalk.italic(s.name) : s.name;
       const dateDisplay = s.appliedAt ? chalk.dim(`(Applied: ${new Date(s.appliedAt).toLocaleString()})`) : '';
 
@@ -396,7 +396,7 @@ production:
         }
       }
     }
-    
+
     if (this.context.dryRun) {
       console.log(chalk.cyan(`\n🔍  DRY RUN COMPLETE: ${migrationsToRun.length} migration(s) would be applied (no changes made)`));
     } else {
@@ -453,7 +453,7 @@ production:
       // These are from targetIndexInApplied + 1 to the end of the appliedDbMigrations array.
       // We need to roll them back in reverse order of application (latest first).
       const dbRecordsToRollback = appliedDbMigrations.slice(targetIndexInApplied + 1).reverse();
-      
+
       if (dbRecordsToRollback.length === 0) {
         console.log(chalk.green(`✅ Version ${targetVersionToBecomeLatest} is already the latest applied migration or no migrations were applied after it. No rollback needed.`));
         return;
@@ -501,9 +501,9 @@ production:
       const migrationTitle = this.context.dryRun 
         ? `DRY RUN: Rolling back ${migration.version} - ${migration.name}` 
         : `⏳ Rolling back migration: ${migration.version} - ${migration.name}`;
-      
+
       console.log(chalk.magenta(`\n${migrationTitle}`));
-      
+
       if (!migration.downSQL) {
         const skipMessage = this.context.dryRun
           ? `Would skip ${migration.version}: No 'down' SQL found for environment '${this.context.environment}'.`
@@ -519,12 +519,12 @@ production:
           if (migration.database) console.log(chalk.cyan('│') + ` Database: ${migration.database}`);
           if (migration.table) console.log(chalk.cyan('│') + ` Table: ${migration.table}`);
           console.log(chalk.cyan('│') + ' ');
-          
+
           // Count queries for display
           const queryCount = migration.downSQL.split(';').filter(q => q.trim().length > 0).length;
           const queryLabel = queryCount === 1 ? 'query' : 'queries';
           console.log(chalk.cyan('│') + ` SQL to execute (${queryCount} ${queryLabel}):`);
-          
+
           // Show each query indented
           const queries = migration.downSQL.split(';').filter(q => q.trim().length > 0);
           queries.forEach(query => {
@@ -533,7 +533,7 @@ production:
               console.log(chalk.cyan('│') + '   ');
             }
           });
-          
+
           console.log(chalk.cyan('└') + chalk.cyan('─'.repeat(70)));
         } else {
           if (this.context.verbose) {
@@ -559,7 +559,7 @@ production:
         }
       }
     }
-    
+
     if (this.context.dryRun) {
       console.log(chalk.cyan(`\n🔍 DRY RUN COMPLETE: ${migrationsToEffectivelyRollback.length} migration(s) would be rolled back (no changes made)`));
     } else {
@@ -611,7 +611,7 @@ production:
             console.log(chalk.gray('  --- DOWN SQL (Env: ') + chalk.cyan(this.context.environment) + chalk.gray(') ---'));
             console.log(chalk.gray(`  ${localFile.downSQL.trim().split('\n').join('\n  ')}`));
             console.log(chalk.gray('  ----------------'));
-             if (localFile.table || localFile.database) {
+            if (localFile.table || localFile.database) {
               const details = [];
               if (localFile.database) details.push(`database: ${localFile.database}`);
               if (localFile.table) details.push(`table: ${localFile.table}`);
@@ -643,15 +643,15 @@ production:
 
   private async _updateSchemaFile() {
     const schemaPath = path.join(this.context.migrationsDir, 'schema.sql');
-    
+
     try {
       if (this.context.verbose) {
         console.log(chalk.dim(`🔍 Updating schema file for all databases (excluding system databases)`));
       }
-      
+
       // Use the existing getDatabaseSchema method which already handles all the logic
       const schema = await this.db.getDatabaseSchema();
-      
+
       // Get all database objects to count them for verbose output
       if (this.context.verbose) {
         const allTables = await this.db.getDatabaseTables();
@@ -659,7 +659,7 @@ production:
         const allDictionaries = await this.db.getDatabaseDictionaries();
         console.log(chalk.dim(`🔍 Found ${allTables.length} tables, ${allViews.length} views, ${allDictionaries.length} dictionaries across all databases`));
       }
-      
+
       // Get unique database names from schema keys
       const uniqueDatabases = new Set<string>();
       Object.keys(schema).forEach(key => {
@@ -668,7 +668,7 @@ production:
           uniqueDatabases.add(match[2]); // Extract database name
         }
       });
-      
+
       let schemaContent = `-- Auto-generated schema file
 -- This file contains table definitions, materialized view definitions, and dictionary definitions
 -- Generated on: ${new Date().toISOString()}
@@ -763,7 +763,7 @@ production:
         skippedCount++;
         continue;
       }
-      
+
       try {
         await this.db.markMigrationApplied(migration.version);
         console.log(chalk.green(`✅ Loaded ${migration.version} - ${migration.name} into migrations table as APPLIED.`));
@@ -776,7 +776,7 @@ production:
     console.log(chalk.greenBright('\n✅ Schema loading process complete.'));
     console.log(chalk.cyan(`  ℹ️ ${loadedCount} migration(s) newly marked as APPLIED.`));
     console.log(chalk.gray(`  ℹ️ ${skippedCount} migration(s) were already APPLIED and skipped.`));
-    
+
     if (loadedCount > 0) {
         try {
             await this.db.optimizeMigrationTable();

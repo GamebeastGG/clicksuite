@@ -35,7 +35,7 @@ export function createCli(): Argv {
         console.log(chalk.blue(`⏳ Ensuring actual migrations (.yml files) directory exists at: ${context.migrationsDir}`));
         await fs.mkdir(context.migrationsDir, { recursive: true });
         console.log(chalk.green(`✅ Migrations directory for .yml files is ready at: ${context.migrationsDir}`));
-        
+
         const runner = new Runner(context);
         await runner.init();
       } catch (error: any) {
@@ -204,5 +204,3 @@ export function createCli(): Argv {
 if (require.main === module) {
   createCli().parse();
 }
-
-
