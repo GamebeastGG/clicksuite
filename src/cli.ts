@@ -12,6 +12,15 @@ import { getContext } from './index';
 // Load environment variables from .env file for CLI usage
 dotenv.config();
 
+// Shared option for the commands that regenerate schema.sql (migrate, migrate:up,
+// migrate:down, migrate:reset). Declared per-command — like --dry-run — so it lands
+// in the handler's parsed argv and flows through getContext into the Runner context.
+const SKIP_SCHEMA_UPDATE_OPTION = {
+  describe: 'Skip regenerating schema.sql after the migration runs (useful in CI, where the dump is unused and can be slow on large databases)',
+  type: 'boolean' as const,
+  default: false,
+};
+
 export function createCli(): Argv {
   return yargs(hideBin(process.argv))
   .option('non-interactive', {
@@ -85,6 +94,9 @@ export function createCli(): Argv {
   .command(
     'migrate',
     'Run all pending migrations (equivalent to migrate:up)',
+    (yargsInstance) => {
+      return yargsInstance.option('skip-schema-update', SKIP_SCHEMA_UPDATE_OPTION);
+    },
     async (argv) => {
       const context = getContext(argv);
       const runner = new Runner(context);
@@ -110,7 +122,8 @@ export function createCli(): Argv {
           describe: 'Preview migrations without executing them',
           type: 'boolean',
           default: false,
-        });
+        })
+        .option('skip-schema-update', SKIP_SCHEMA_UPDATE_OPTION);
     },
     async (argv) => {
       const context = getContext(argv);
@@ -137,7 +150,8 @@ export function createCli(): Argv {
           describe: 'Preview rollbacks without executing them',
           type: 'boolean',
           default: false,
-        });
+        })
+        .option('skip-schema-update', SKIP_SCHEMA_UPDATE_OPTION);
     },
     async (argv) => {
       const context = getContext(argv);
@@ -154,6 +168,9 @@ export function createCli(): Argv {
   .command(
     'migrate:reset',
     'Roll back all applied migrations and clear the migrations table (requires confirmation)',
+    (yargsInstance) => {
+      return yargsInstance.option('skip-schema-update', SKIP_SCHEMA_UPDATE_OPTION);
+    },
     async (argv) => {
       const context = getContext(argv);
       const runner = new Runner(context);

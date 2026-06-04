@@ -119,6 +119,31 @@ describe('CLI commands (cli.ts)', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
     exitSpy.mockRestore();
   });
+
+  // --skip-schema-update is accepted on every command that regenerates schema.sql
+  // and flows through getContext into the Runner's context.
+  it.each([
+    ['migrate', ['migrate']],
+    ['migrate:up', ['migrate:up']],
+    ['migrate:down', ['migrate:down']],
+    ['migrate:reset', ['migrate:reset']],
+  ])('passes --skip-schema-update through to the Runner context for %s', async (_label, cmd) => {
+    process.argv = ['node', 'cli', ...cmd, '--skip-schema-update', '--non-interactive'];
+    const { createCli } = require('../src/cli');
+    await createCli().parseAsync();
+
+    const context = (Runner as unknown as jest.MockedClass<typeof Runner>).mock.calls[0][0];
+    expect(context.skipSchemaUpdate).toBe(true);
+  });
+
+  it('defaults skipSchemaUpdate to false when the flag is omitted', async () => {
+    process.argv = ['node', 'cli', 'migrate', '--non-interactive'];
+    const { createCli } = require('../src/cli');
+    await createCli().parseAsync();
+
+    const context = (Runner as unknown as jest.MockedClass<typeof Runner>).mock.calls[0][0];
+    expect(context.skipSchemaUpdate).toBe(false);
+  });
 });
 
 

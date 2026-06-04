@@ -105,6 +105,7 @@ clicksuite <command> [options]
 *   `--non-interactive`, `-y`: Run in non-interactive mode, automatically confirming prompts (e.g., for `migrate:reset`). Useful for CI environments.
 *   `--verbose`: Show detailed SQL logs and verbose output. By default, only migration names and results are shown.
 *   `--dry-run`: Preview migrations without executing them (available for `migrate:up` and `migrate:down`). Shows exactly what would be executed.
+*   `--skip-schema-update`: Skip regenerating `schema.sql` after the migration runs (available for `migrate`, `migrate:up`, `migrate:down`, and `migrate:reset`). Useful in CI, where the dump is unused and the full-database `SHOW CREATE` walk can be slow on large/multi-database clusters. Equivalent to the programmatic `skipSchemaUpdate: true` context option.
 
 ### Commands
 
@@ -124,6 +125,7 @@ clicksuite <command> [options]
 
 *   **`clicksuite migrate`**
     *   Runs all pending migrations for the current environment. Equivalent to `clicksuite migrate:up`.
+    *   Use `--skip-schema-update` to skip regenerating `schema.sql` afterwards: `clicksuite migrate --skip-schema-update`
 
 *   **`clicksuite migrate:up [migrationVersion]`**
     *   Applies migrations for the current environment.
@@ -132,6 +134,7 @@ clicksuite <command> [options]
     *   Example: `clicksuite migrate:up 20230101120000`
     *   Use `--dry-run` to preview without executing: `clicksuite migrate:up --dry-run`
     *   Use `--verbose` to see detailed SQL logs: `clicksuite migrate:up --verbose`
+    *   Use `--skip-schema-update` to skip regenerating `schema.sql` afterwards: `clicksuite migrate:up --skip-schema-update`
 
 *   **`clicksuite migrate:down [migrationVersion]`**
     *   Rolls back migrations for the current environment.
@@ -141,6 +144,7 @@ clicksuite <command> [options]
     *   Example (roll back to version): `clicksuite migrate:down 20230101120000`
     *   Use `--dry-run` to preview without executing: `clicksuite migrate:down --dry-run`
     *   Use `--verbose` to see detailed SQL logs: `clicksuite migrate:down --verbose`
+    *   Use `--skip-schema-update` to skip regenerating `schema.sql` afterwards: `clicksuite migrate:down --skip-schema-update`
 
 *   **`clicksuite migrate:reset`**
     *   Rolls back **all** applied migrations for the current environment by executing their `downSQL`.
@@ -554,6 +558,15 @@ The `Context` interface supports all CLI options plus programmatic-specific sett
 By default, Clicksuite automatically generates a `schema.sql` file containing all database objects (tables, views, dictionaries) from **all databases** (excluding system databases) after successful migrations. This provides a complete snapshot of your database schema.
 
 **To disable schema.sql generation:**
+
+From the CLI, pass `--skip-schema-update` to any of `migrate`, `migrate:up`, `migrate:down`, or `migrate:reset`:
+
+```bash
+clicksuite migrate --skip-schema-update
+clicksuite migrate:up --skip-schema-update --non-interactive
+```
+
+Programmatically:
 
 ```typescript
 // Programmatic usage
